@@ -52,4 +52,9 @@ class AssessmentPeriod extends Model
     {
         return $this->hasOne(PeriodResult::class);
     }
+
+    public function teacherResults()
+    {
+        return $this->hasMany(TeacherPeriodResult::class, 'period_id');
+    }
 }

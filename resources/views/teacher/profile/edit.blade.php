@@ -1,0 +1,131 @@
+<x-layouts.teacher>
+    <x-slot:title>Profil Saya</x-slot:title>
+
+    <x-slot:breadcrumbs>
+        <li>Profil</li>
+    </x-slot:breadcrumbs>
+
+    <x-slot:header>
+        <h1 class="text-2xl font-bold">Profil Saya</h1>
+        <p class="text-base-content/70">Kelola informasi profil dan password akun Anda</p>
+    </x-slot:header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Profile Information -->
+        <x-ui.card title="Informasi Profil">
+            <p class="text-sm text-base-content/60 mb-4">
+                Perbarui informasi profil akun Anda.
+            </p>
+
+            <form action="{{ route('teacher.profile.update') }}" method="POST">
+                @csrf
+                @method('PUT')
+
+                <x-ui.input
+                    name="name"
+                    label="Nama Lengkap"
+                    :value="$user->name"
+                    :error="$errors->first('name')"
+                    required
+                />
+
+                <x-ui.input
+                    name="email"
+                    label="Email"
+                    type="email"
+                    :value="$user->email"
+                    disabled
+                    helpText="Email tidak dapat diubah"
+                />
+
+                @if($teacherProfile)
+                    <x-ui.input
+                        name="employee_no"
+                        label="NIP/NIK"
+                        :value="$teacherProfile->employee_no"
+                        disabled
+                        helpText="NIP/NIK dikelola oleh admin"
+                    />
+
+                    <x-ui.input
+                        name="subject"
+                        label="Mata Pelajaran"
+                        :value="$teacherProfile->subject"
+                        disabled
+                        helpText="Mata pelajaran dikelola oleh admin"
+                    />
+                @endif
+
+                <x-slot:actions>
+                    <x-ui.button type="primary">
+                        Simpan Perubahan
+                    </x-ui.button>
+                </x-slot:actions>
+            </form>
+        </x-ui.card>
+
+        <!-- Update Password -->
+        <x-ui.card title="Ubah Password">
+            <p class="text-sm text-base-content/60 mb-4">
+                Pastikan akun Anda menggunakan password yang kuat untuk keamanan.
+            </p>
+
+            <form action="{{ route('teacher.profile.update-password') }}" method="POST">
+                @csrf
+                @method('PUT')
+
+                <x-ui.input
+                    name="current_password"
+                    label="Password Saat Ini"
+                    type="password"
+                    :error="$errors->first('current_password')"
+                    required
+                />
+
+                <x-ui.input
+                    name="password"
+                    label="Password Baru"
+                    type="password"
+                    :error="$errors->first('password')"
+                    required
+                />
+
+                <x-ui.input
+                    name="password_confirmation"
+                    label="Konfirmasi Password Baru"
+                    type="password"
+                    required
+                />
+
+                <x-slot:actions>
+                    <x-ui.button type="primary">
+                        Ubah Password
+                    </x-ui.button>
+                </x-slot:actions>
+            </form>
+        </x-ui.card>
+    </div>
+
+    <!-- Account Info -->
+    <x-ui.card title="Informasi Akun" class="mt-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <p class="text-sm text-base-content/60">Role</p>
+                <p class="font-medium">Guru</p>
+            </div>
+            <div>
+                <p class="text-sm text-base-content/60">Status Kepegawaian</p>
+                <p class="font-medium">{{ $teacherProfile->employment_status ?? '-' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-base-content/60">Terdaftar Sejak</p>
+                <p class="font-medium">{{ $user->created_at?->format('d M Y') ?? '-' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-base-content/60">Login Terakhir</p>
+                <p class="font-medium">{{ $user->last_login_at?->format('d M Y H:i') ?? '-' }}</p>
+            </div>
+        </div>
+    </x-ui.card>
+
+</x-layouts.teacher>

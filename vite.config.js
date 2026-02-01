@@ -9,6 +9,7 @@ export default defineConfig({
             refresh: true,
         }),
         tailwindcss(),
+
     ],
     server: {
         watch: {

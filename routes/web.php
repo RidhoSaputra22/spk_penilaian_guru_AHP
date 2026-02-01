@@ -14,6 +14,19 @@ use App\Http\Controllers\Admin\AssessorController;
 use App\Http\Controllers\Admin\AssessmentController;
 use App\Http\Controllers\Admin\ActivityLogController;
 
+// Assessor Controllers
+use App\Http\Controllers\Assessor\DashboardController as AssessorDashboardController;
+use App\Http\Controllers\Assessor\ProfileController as AssessorProfileController;
+use App\Http\Controllers\Assessor\AssessmentController as AssessorAssessmentController;
+use App\Http\Controllers\Assessor\ResultController as AssessorResultController;
+
+// Teacher Controllers
+use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
+use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
+use App\Http\Controllers\Teacher\StatusController as TeacherStatusController;
+use App\Http\Controllers\Teacher\EvidenceController as TeacherEvidenceController;
+use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
+
 /*
 |--------------------------------------------------------------------------
 | Public Routes
@@ -114,22 +127,56 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
 /*
 |--------------------------------------------------------------------------
-| Assessor Routes (placeholder)
+| Assessor Routes
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->prefix('assessor')->name('assessor.')->group(function () {
-    Route::get('/', function() {
-        return view('assessor.dashboard');
-    })->name('dashboard');
+    // Dashboard
+    Route::get('/', [AssessorDashboardController::class, 'index'])->name('dashboard');
+
+    // Profile
+    Route::get('profile', [AssessorProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('profile', [AssessorProfileController::class, 'update'])->name('profile.update');
+    Route::put('profile/password', [AssessorProfileController::class, 'updatePassword'])->name('profile.update-password');
+
+    // Assessments
+    Route::get('assessments', [AssessorAssessmentController::class, 'index'])->name('assessments.index');
+    Route::get('assessments/period/{period}', [AssessorAssessmentController::class, 'period'])->name('assessments.period');
+    Route::get('assessments/period/{period}/teacher/{teacher}', [AssessorAssessmentController::class, 'score'])->name('assessments.score');
+    Route::post('assessments/{assessment}/save-draft', [AssessorAssessmentController::class, 'saveDraft'])->name('assessments.save-draft');
+    Route::post('assessments/{assessment}/submit', [AssessorAssessmentController::class, 'submit'])->name('assessments.submit');
+
+    // Results
+    Route::get('results', [AssessorResultController::class, 'index'])->name('results.index');
+    Route::get('results/{assessment}', [AssessorResultController::class, 'show'])->name('results.show');
 });
 
 /*
 |--------------------------------------------------------------------------
-| Teacher Routes (placeholder)
+| Teacher Routes
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth'])->prefix('teacher')->name('teacher.')->group(function () {
-    Route::get('/', function() {
-        return view('teacher.dashboard');
-    })->name('dashboard');
+    // Dashboard
+    Route::get('/', [TeacherDashboardController::class, 'index'])->name('dashboard');
+
+    // Profile
+    Route::get('profile', [TeacherProfileController::class, 'edit'])->name('profile.edit');
+    Route::put('profile', [TeacherProfileController::class, 'update'])->name('profile.update');
+    Route::put('profile/password', [TeacherProfileController::class, 'updatePassword'])->name('profile.update-password');
+
+    // Assessment Status
+    Route::get('status', [TeacherStatusController::class, 'index'])->name('status.index');
+    Route::get('status/{assessment}', [TeacherStatusController::class, 'show'])->name('status.show');
+
+    // Evidence Upload
+    Route::get('evidence', [TeacherEvidenceController::class, 'index'])->name('evidence.index');
+    Route::post('evidence/{assessment}/{item}', [TeacherEvidenceController::class, 'upload'])->name('evidence.upload');
+    Route::delete('evidence/{evidence}', [TeacherEvidenceController::class, 'destroy'])->name('evidence.destroy');
+    Route::get('evidence/{evidence}/download', [TeacherEvidenceController::class, 'download'])->name('evidence.download');
+
+    // Results
+    Route::get('results', [TeacherResultController::class, 'index'])->name('results.index');
+    Route::get('results/{result}', [TeacherResultController::class, 'show'])->name('results.show');
+    Route::get('results/{result}/download', [TeacherResultController::class, 'download'])->name('results.download');
 });

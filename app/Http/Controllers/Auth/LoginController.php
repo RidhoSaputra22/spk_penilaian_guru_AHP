@@ -28,6 +28,7 @@ class LoginController extends Controller
             // Check if user is deactivated
             if (Auth::user()->deactivated_at) {
                 Auth::logout();
+
                 return back()->withErrors([
                     'email' => 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator.',
                 ])->onlyInput('email');
@@ -35,6 +36,8 @@ class LoginController extends Controller
 
             // Redirect based on role
             $user = Auth::user();
+
+            // dd($user->hasRole('admin'));
 
             if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
                 return redirect()->intended(route('admin.dashboard'));

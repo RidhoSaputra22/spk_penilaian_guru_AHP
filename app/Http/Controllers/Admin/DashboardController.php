@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Assessment;
-use App\Models\AssessmentPeriod;
-use App\Models\TeacherProfile;
-use App\Models\AssessorProfile;
 use App\Models\ActivityLog;
 use App\Models\AhpModel;
+use App\Models\Assessment;
+use App\Models\AssessmentPeriod;
+use App\Models\AssessorProfile;
 use App\Models\TeacherPeriodResult;
-use Illuminate\Http\Request;
+use App\Models\TeacherProfile;
 
 class DashboardController extends Controller
 {
@@ -18,17 +17,19 @@ class DashboardController extends Controller
     {
         $institution = auth()->user()->institution;
 
+        // dd('this is dashboard');
+
         // Get active period
         $activePeriod = AssessmentPeriod::where('institution_id', $institution?->id)
             ->where('status', 'open')
             ->first();
 
         // Stats
-        $totalTeachers = TeacherProfile::whereHas('user', function($q) use ($institution) {
+        $totalTeachers = TeacherProfile::whereHas('user', function ($q) use ($institution) {
             $q->where('institution_id', $institution?->id);
         })->count();
 
-        $totalAssessors = AssessorProfile::whereHas('user', function($q) use ($institution) {
+        $totalAssessors = AssessorProfile::whereHas('user', function ($q) use ($institution) {
             $q->where('institution_id', $institution?->id);
         })->count();
 
@@ -54,7 +55,7 @@ class DashboardController extends Controller
 
         // Recent activities
         $recentActivities = ActivityLog::with('user')
-            ->whereHas('user', function($q) use ($institution) {
+            ->whereHas('user', function ($q) use ($institution) {
                 $q->where('institution_id', $institution?->id);
             })
             ->latest()
