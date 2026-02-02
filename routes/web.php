@@ -68,16 +68,20 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
 
     // Criteria Management
     Route::get('criteria', [CriteriaController::class, 'index'])->name('criteria.index');
+    Route::get('criteria/add', [CriteriaController::class, 'add'])->name('criteria.add');
     Route::post('criteria', [CriteriaController::class, 'storeSet'])->name('criteria.store');
-    Route::get('criteria/sets/create', function () {
-        return view('admin.criteria.create');
-    })->name('criteria.sets.create');
+    Route::get('criteria/sets/create', [CriteriaController::class, 'create'])->name('criteria.sets.create');
+    Route::get('criteria/add', [CriteriaController::class, 'add'])->name('criteria.add');
+    Route::get('criteria/sets/{criteriaSet}/edit', [CriteriaController::class, 'editSet'])->name('criteria.sets.edit');
     Route::post('criteria/sets', [CriteriaController::class, 'storeSet'])->name('criteria.store-set');
     Route::put('criteria/sets/{criteriaSet}', [CriteriaController::class, 'updateSet'])->name('criteria.update-set');
+    Route::patch('criteria/sets/{criteriaSet}/lock', [CriteriaController::class, 'lockSet'])->name('criteria.sets.lock');
     Route::delete('criteria/sets/{criteriaSet}', [CriteriaController::class, 'destroySet'])->name('criteria.destroy-set');
     Route::post('criteria/nodes', [CriteriaController::class, 'storeNode'])->name('criteria.store-node');
+    Route::get('criteria/{node}/edit', [CriteriaController::class, 'editNode'])->name('criteria.edit');
     Route::put('criteria/nodes/{node}', [CriteriaController::class, 'updateNode'])->name('criteria.update-node');
     Route::delete('criteria/nodes/{node}', [CriteriaController::class, 'destroyNode'])->name('criteria.destroy-node');
+    Route::delete('criteria/{node}', [CriteriaController::class, 'destroyNode'])->name('criteria.destroy');
     Route::post('criteria/reorder', [CriteriaController::class, 'reorder'])->name('criteria.reorder');
 
     // AHP Weighting

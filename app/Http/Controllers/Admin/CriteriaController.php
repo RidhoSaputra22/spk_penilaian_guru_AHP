@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\CriteriaSet;
-use App\Models\CriteriaNode;
-use App\Models\ScoringScale;
 use App\Models\ActivityLog;
+use App\Models\CriteriaNode;
+use App\Models\CriteriaSet;
+use App\Models\ScoringScale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -16,21 +16,75 @@ class CriteriaController extends Controller
     {
         $institution = auth()->user()->institution;
 
-        $criteriaSets = CriteriaSet::with(['nodes' => function($q) {
+        $criteriaSets = CriteriaSet::with(['nodes' => function ($q) {
             $q->orderBy('sort_order');
         }])
-        ->where('institution_id', $institution?->id)
-        ->get();
+            ->where('institution_id', $institution?->id)
+            ->get();
 
         $scoringScales = ScoringScale::with('options')
             ->where('institution_id', $institution?->id)
             ->get();
 
-        $activeCriteriaSet = $request->filled('set')
+        $currentSet = $request->filled('set')
             ? $criteriaSets->firstWhere('id', $request->set)
             : $criteriaSets->first();
 
-        return view('admin.criteria.index', compact('criteriaSets', 'activeCriteriaSet', 'scoringScales'));
+        $criteriaNodes = collect();
+        if ($currentSet) {
+            $criteriaNodes = $currentSet->nodes()->orderBy('sort_order')->get();
+        }
+
+        return view('admin.criteria.index', compact('criteriaSets', 'currentSet', 'criteriaNodes', 'scoringScales'));
+    }
+
+    public function create()
+    {
+        $institution = auth()->user()->institution;
+
+        $scoringScales = ScoringScale::with('options')
+            ->where('institution_id', $institution?->id)
+            ->get();
+
+        return view('admin.criteria.create', compact('scoringScales'));
+    }
+
+    public function add(Request $request)
+    {
+        $institution = auth()->user()->institution;
+
+        // Get scoring scales
+        $scoringScales = ScoringScale::with('options')
+            ->where('institution_id', $institution?->id)
+            ->get();
+
+        // Get current criteria set
+        $currentSet = null;
+        if ($request->filled('set')) {
+            $currentSet = CriteriaSet::where('id', $request->set)
+                ->where('institution_id', $institution?->id)
+                ->first();
+        }
+
+        // Get parent node if adding sub-criteria
+        $parentNode = null;
+        if ($request->filled('parent')) {
+            $parentNode = CriteriaNode::where('id', $request->parent)
+                ->whereHas('set', function ($q) use ($institution) {
+                    $q->where('institution_id', $institution?->id);
+                })
+                ->first();
+        }
+
+        // validate currentSet isLocked
+        if ($currentSet && $currentSet->locked_at) {
+            return redirect()->route('admin.criteria.index', ['set' => $currentSet->id])
+                ->with('error', 'Set kriteria yang dipilih telah dikunci dan tidak dapat diubah.');
+        }
+
+        // dd($parentNode);
+
+        return view('admin.criteria.add', compact('scoringScales', 'currentSet', 'parentNode'));
     }
 
     public function storeSet(Request $request)
@@ -87,6 +141,39 @@ class CriteriaController extends Controller
             ->with('success', 'Set kriteria berhasil diperbarui.');
     }
 
+    public function editSet(CriteriaSet $criteriaSet)
+    {
+        $institution = auth()->user()->institution;
+
+        $scoringScales = ScoringScale::with('options')
+            ->where('institution_id', $institution?->id)
+            ->get();
+
+        return view('admin.criteria.edit-set', compact('criteriaSet', 'scoringScales'));
+    }
+
+    public function lockSet(CriteriaSet $criteriaSet)
+    {
+        $criteriaSet->update([
+            'locked_at' => now(),
+            'locked_by' => auth()->id(),
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'lock_criteria_set',
+            'entity_type' => CriteriaSet::class,
+            'entity_id' => $criteriaSet->id,
+            'description' => "Locked criteria set: {$criteriaSet->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return back()->with('success', 'Set kriteria berhasil dikunci.');
+    }
+
     public function destroySet(CriteriaSet $criteriaSet)
     {
         $setName = $criteriaSet->name;
@@ -119,6 +206,8 @@ class CriteriaController extends Controller
             'scoring_scale_id' => ['nullable', 'exists:scoring_scales,id'],
         ]);
 
+        // dd($validated);
+
         // Get parent_id (may be null)
         $parentId = $validated['parent_id'] ?? null;
 
@@ -150,7 +239,8 @@ class CriteriaController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return back()->with('success', 'Kriteria berhasil ditambahkan.');
+        return redirect()->route('admin.criteria.index', ['set' => $validated['criteria_set_id']])
+            ->with('success', 'Kriteria berhasil ditambahkan.');
     }
 
     public function updateNode(Request $request, CriteriaNode $node)
@@ -168,11 +258,36 @@ class CriteriaController extends Controller
         return back()->with('success', 'Kriteria berhasil diperbarui.');
     }
 
+    public function editNode(CriteriaNode $node)
+    {
+        return view('admin.criteria.edit', compact('node'));
+    }
+
     public function destroyNode(CriteriaNode $node)
     {
         // Check if has children
+
+        // dd($node->children()->exists());
+
+        // destroy all children
         if ($node->children()->exists()) {
-            return back()->with('error', 'Tidak dapat menghapus kriteria yang memiliki sub-kriteria.');
+
+            // write to activity log for each child deleted
+            foreach ($node->children as $child) {
+                ActivityLog::create([
+                    'id' => Str::ulid(),
+                    'user_id' => auth()->id(),
+                    'action' => 'delete_criteria_node',
+                    'entity_type' => CriteriaNode::class,
+                    'entity_id' => $child->id,
+                    'description' => "Deleted criteria node: {$child->code} - {$child->name}",
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+            }
+
+            $node->children()->delete();
+
         }
 
         $nodeName = "{$node->code} - {$node->name}";
