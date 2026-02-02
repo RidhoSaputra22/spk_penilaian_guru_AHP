@@ -1,10 +1,8 @@
-<x-layouts.admin>
-    <x-slot:breadcrumbs>
-        <li><a href="{{ route('admin.kpi-forms.index') }}">Template Form KPI</a></li>
-        <li>Form Builder</li>
-    </x-slot:breadcrumbs>
+@extends('layouts.admin')
 
-    <x-slot:header>
+@section('title', 'Form Builder - ' . $template->name)
+
+@section('content')
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
                 <h1 class="text-2xl font-bold">Form Builder: {{ $template->name }}</h1>
@@ -376,4 +374,4 @@
             }
         }
     </script>
-</x-layouts.admin>
+@endpush

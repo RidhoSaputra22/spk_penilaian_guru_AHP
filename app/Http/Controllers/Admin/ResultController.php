@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AssessmentPeriod;
-use App\Models\PeriodResult;
-use App\Models\TeacherPeriodResult;
-use App\Models\TeacherCriteriaScore;
-use App\Models\CriteriaNode;
 use App\Models\AhpWeight;
 use App\Models\Assessment;
+use App\Models\AssessmentPeriod;
+use App\Models\CriteriaNode;
+use App\Models\PeriodResult;
+use App\Models\TeacherCriteriaScore;
+use App\Models\TeacherPeriodResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,89 +18,80 @@ class ResultController extends Controller
 {
     public function index(Request $request)
     {
-        $institution = auth()->user()->institution;
-
-        $periods = AssessmentPeriod::where('institution_id', $institution?->id)
-            ->orderByDesc('scoring_open_at')
-            ->get();
-
+        $periods = AssessmentPeriod::orderBy('created_at', 'desc')->get();
         $selectedPeriod = null;
         $results = collect();
         $criteria = collect();
         $criteriaAverages = [];
 
-        if ($request->filled('period')) {
-            $selectedPeriod = $periods->firstWhere('id', $request->period);
-        } else {
-            $selectedPeriod = $periods->firstWhere('status', 'closed')
-                ?? $periods->firstWhere('status', 'open')
-                ?? $periods->first();
-        }
+        if ($request->filled('period_id')) {
+            $selectedPeriod = AssessmentPeriod::find($request->period_id);
 
-        if ($selectedPeriod) {
-            // Get or create period result
-            $periodResult = PeriodResult::where('assessment_period_id', $selectedPeriod->id)->first();
+            if ($selectedPeriod) {
+                $periodResult = PeriodResult::where('assessment_period_id', $selectedPeriod->id)->first();
 
-            if ($periodResult) {
-                $query = TeacherPeriodResult::with(['teacher.user', 'teacher.teacherGroup'])
-                    ->where('period_result_id', $periodResult->id);
+                if ($periodResult) {
+                    $query = TeacherPeriodResult::with(['teacher.user', 'teacher.teacherGroup'])
+                        ->where('period_result_id', $periodResult->id);
 
-                // Search filter
-                if ($request->filled('search')) {
-                    $search = $request->search;
-                    $query->whereHas('teacher.user', function($q) use ($search) {
-                        $q->where('name', 'like', "%{$search}%");
-                    });
-                }
-
-                // Grade filter - calculated from score
-                if ($request->filled('grade')) {
-                    $gradeRanges = [
-                        'A' => [90, 100],
-                        'B' => [80, 89.99],
-                        'C' => [70, 79.99],
-                        'D' => [60, 69.99],
-                        'E' => [0, 59.99],
-                    ];
-                    if (isset($gradeRanges[$request->grade])) {
-                        $range = $gradeRanges[$request->grade];
-                        $query->whereBetween('final_score', $range);
+                    // Search filter
+                    if ($request->filled('search')) {
+                        $search = $request->search;
+                        $query->whereHas('teacher.user', function ($q) use ($search) {
+                            $q->where('name', 'like', "%{$search}%");
+                        });
                     }
-                }
 
-                // Group filter
-                if ($request->filled('group')) {
-                    $query->whereHas('teacher', function($q) use ($request) {
-                        $q->where('teacher_group_id', $request->group);
+                    // Grade filter
+                    if ($request->filled('grade')) {
+                        $gradeRanges = [
+                            'A' => [90, 100],
+                            'B' => [80, 89.99],
+                            'C' => [70, 79.99],
+                            'D' => [60, 69.99],
+                            'E' => [0, 59.99],
+                        ];
+                        if (isset($gradeRanges[$request->grade])) {
+                            $range = $gradeRanges[$request->grade];
+                            $query->whereBetween('final_score', $range);
+                        }
+                    }
+
+                    // Group filter
+                    if ($request->filled('group')) {
+                        $query->whereHas('teacher', function ($q) use ($request) {
+                            $q->where('teacher_group_id', $request->group);
+                        });
+                    }
+
+                    $results = $query->orderByDesc('final_score')->get();
+
+                    // Add rank and grade
+                    $results = $results->map(function ($result, $index) {
+                        $result->rank = $index + 1;
+                        $result->grade = $this->determineGrade($result->final_score);
+
+                        return $result;
                     });
                 }
 
-                $results = $query->orderByDesc('final_score')->get();
+                // Get criteria for this period
+                $criteriaSetId = $selectedPeriod->ahpModel?->criteria_set_id;
+                $criteria = $criteriaSetId ? CriteriaNode::where('criteria_set_id', $criteriaSetId)
+                    ->whereNull('parent_id')
+                    ->orderBy('sort_order')
+                    ->get() : collect();
 
-                // Add rank and grade
-                $results = $results->map(function($result, $index) {
-                    $result->rank = $index + 1;
-                    $result->grade = $this->determineGrade($result->final_score);
-                    return $result;
-                });
-            }
-
-            // Get criteria for this period (via AHP model)
-            $criteriaSetId = $selectedPeriod->ahpModel?->criteria_set_id;
-            $criteria = $criteriaSetId ? CriteriaNode::where('criteria_set_id', $criteriaSetId)
-                ->whereNull('parent_id')
-                ->orderBy('sort_order')
-                ->get() : collect();
-
-            // Calculate criteria averages from teacher criteria scores
-            if ($periodResult) {
-                foreach ($criteria as $criterion) {
-                    $avgScore = TeacherCriteriaScore::whereHas('teacherPeriodResult', function($q) use ($periodResult) {
-                        $q->where('period_result_id', $periodResult->id);
-                    })
-                    ->where('criteria_node_id', $criterion->id)
-                    ->avg('weighted_score');
-                    $criteriaAverages[$criterion->id] = round($avgScore ?? 0, 2);
+                // Calculate criteria averages
+                if (isset($periodResult) && $periodResult) {
+                    foreach ($criteria as $criterion) {
+                        $avgScore = TeacherCriteriaScore::whereHas('teacherPeriodResult', function ($q) use ($periodResult) {
+                            $q->where('period_result_id', $periodResult->id);
+                        })
+                            ->where('criteria_node_id', $criterion->id)
+                            ->avg('weighted_score');
+                        $criteriaAverages[$criterion->id] = round($avgScore ?? 0, 2);
+                    }
                 }
             }
         }
@@ -116,51 +107,24 @@ class ResultController extends Controller
 
     public function show(TeacherPeriodResult $result)
     {
-        $result->load([
-            'teacher.user',
-            'teacher.teacherGroup',
-            'periodResult.period.criteriaSet.criteriaNodes',
-            'periodResult.period.ahpModel.weights',
-            'criteriaScores.criteriaNode',
-        ]);
+        $result->load(['teacher.user', 'period', 'criteriaScores.criteriaNode']);
 
-        $period = $result->periodResult->period;
+        $rootCriteria = collect();
+        $historicalResults = collect();
 
-        // Get AHP weights
-        $weights = [];
-        if ($period->ahpModel) {
-            $weights = AhpWeight::where('ahp_model_id', $period->ahpModel->id)
-                ->pluck('global_weight', 'criteria_node_id')
-                ->toArray();
+        if ($result->period?->ahpModel?->criteria_set_id) {
+            $rootCriteria = CriteriaNode::where('criteria_set_id', $result->period->ahpModel->criteria_set_id)
+                ->whereNull('parent_id')
+                ->orderBy('sort_order')
+                ->get();
         }
 
-        // Get root criteria with their scores
-        $rootCriteria = CriteriaNode::where('criteria_set_id', $period->criteria_set_id)
-            ->whereNull('parent_id')
-            ->orderBy('sort_order')
-            ->get()
-            ->map(function($criterion) use ($result, $weights) {
-                $score = $result->criteriaScores->firstWhere('criteria_node_id', $criterion->id);
-                $weight = $weights[$criterion->id] ?? 0;
-
-                return [
-                    'criterion' => $criterion,
-                    'raw_score' => round($score->raw_score ?? 0, 2),
-                    'weight' => round($weight * 100, 2),
-                    'weighted_score' => round($score->weighted_score ?? 0, 4),
-                ];
-            });
-
-        // Historical results
-        $historicalResults = TeacherPeriodResult::with('periodResult.period')
-            ->where('teacher_profile_id', $result->teacher_profile_id)
-            ->where('id', '!=', $result->id)
-            ->orderByDesc('created_at')
-            ->take(5)
+        // Get historical results for this teacher
+        $historicalResults = TeacherPeriodResult::where('teacher_profile_id', $result->teacher_profile_id)
+            ->with('period')
+            ->orderBy('created_at', 'desc')
+            ->limit(5)
             ->get();
-
-        // Add grade to result
-        $result->grade = $this->determineGrade($result->final_score);
 
         return view('admin.results.show', compact(
             'result',
@@ -171,13 +135,18 @@ class ResultController extends Controller
 
     public function export(Request $request)
     {
-        $periodId = $request->input('period');
+        if (! $request->filled('period_id')) {
+            return back()->with('error', 'Silakan pilih periode terlebih dahulu.');
+        }
 
-        $period = AssessmentPeriod::findOrFail($periodId);
+        $period = AssessmentPeriod::find($request->period_id);
+        if (! $period) {
+            return back()->with('error', 'Periode tidak ditemukan.');
+        }
+
         $periodResult = PeriodResult::where('assessment_period_id', $period->id)->first();
-
-        if (!$periodResult) {
-            return back()->with('error', 'Tidak ada hasil untuk diekspor.');
+        if (! $periodResult) {
+            return back()->with('error', 'Hasil belum dihitung untuk periode ini.');
         }
 
         $results = TeacherPeriodResult::with(['teacher.user', 'teacher.teacherGroup'])
@@ -185,14 +154,12 @@ class ResultController extends Controller
             ->orderByDesc('final_score')
             ->get();
 
-        $filename = "hasil_penilaian_" . Str::slug($period->name) . "_" . date('Y-m-d') . ".csv";
-
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Content-Disposition' => 'attachment; filename="hasil_penilaian_'.$period->name.'.csv"',
         ];
 
-        $callback = function() use ($results) {
+        $callback = function () use ($results) {
             $file = fopen('php://output', 'w');
 
             // Header row
@@ -229,10 +196,10 @@ class ResultController extends Controller
             'period_id' => ['required', 'exists:assessment_periods,id'],
         ]);
 
-        $period = AssessmentPeriod::with(['ahpModel.weights', 'criteriaSet.criteriaNodes'])
+        $period = AssessmentPeriod::with(['ahpModel.weights', 'ahpModel.criteriaSet.criteriaNodes'])
             ->findOrFail($validated['period_id']);
 
-        if (!$period->ahpModel || $period->ahpModel->status !== 'finalized') {
+        if (! $period->ahpModel || $period->ahpModel->status !== 'finalized') {
             return back()->with('error', 'Model AHP harus difinalisasi terlebih dahulu.');
         }
 
@@ -324,19 +291,29 @@ class ResultController extends Controller
 
             DB::commit();
 
-            return back()->with('success', 'Perhitungan hasil penilaian berhasil dilakukan untuk ' . $assessments->count() . ' guru.');
+            return back()->with('success', 'Perhitungan hasil penilaian berhasil dilakukan untuk '.$assessments->count().' guru.');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->with('error', 'Terjadi kesalahan: ' . $e->getMessage());
+
+            return back()->with('error', 'Terjadi kesalahan: '.$e->getMessage());
         }
     }
 
     protected function determineGrade(float $score): string
     {
-        if ($score >= 90) return 'A';
-        if ($score >= 80) return 'B';
-        if ($score >= 70) return 'C';
-        if ($score >= 60) return 'D';
+        if ($score >= 90) {
+            return 'A';
+        }
+        if ($score >= 80) {
+            return 'B';
+        }
+        if ($score >= 70) {
+            return 'C';
+        }
+        if ($score >= 60) {
+            return 'D';
+        }
+
         return 'E';
     }
 }

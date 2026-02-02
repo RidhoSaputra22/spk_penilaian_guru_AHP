@@ -51,8 +51,7 @@ class ResultController extends Controller
 
         // Verify ownership
         if ($assessment->assessor_profile_id !== $assessorProfile->id) {
-            return redirect()->route('assessor.results.index')
-                ->with('error', 'Anda tidak memiliki akses ke hasil penilaian ini.');
+            abort(403, 'Anda tidak memiliki akses ke hasil penilaian ini.');
         }
 
         $assessment->load([

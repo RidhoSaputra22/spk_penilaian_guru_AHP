@@ -50,12 +50,15 @@ class DashboardController extends Controller
             ->get();
 
         // Statistics
+        $pendingCount = Assessment::where('assessor_profile_id', $assessorProfile->id)
+            ->whereIn('status', ['draft', 'pending'])->count();
+        $completedCount = Assessment::where('assessor_profile_id', $assessorProfile->id)
+            ->where('status', 'submitted')->count();
+
         $stats = [
             'total_assigned' => Assessment::where('assessor_profile_id', $assessorProfile->id)->count(),
-            'pending' => Assessment::where('assessor_profile_id', $assessorProfile->id)
-                ->whereIn('status', ['draft', 'pending'])->count(),
-            'submitted' => Assessment::where('assessor_profile_id', $assessorProfile->id)
-                ->where('status', 'submitted')->count(),
+            'pending' => $pendingCount,
+            'submitted' => $completedCount,
             'finalized' => Assessment::where('assessor_profile_id', $assessorProfile->id)
                 ->where('status', 'finalized')->count(),
         ];
@@ -65,7 +68,9 @@ class DashboardController extends Controller
             'activePeriods',
             'pendingAssessments',
             'recentSubmitted',
-            'stats'
+            'stats',
+            'pendingCount',
+            'completedCount'
         ));
     }
 }

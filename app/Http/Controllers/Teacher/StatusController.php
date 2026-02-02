@@ -27,7 +27,7 @@ class StatusController extends Controller
 
         // Filter by period
         if ($request->filled('period_id')) {
-            $query->where('period_id', $request->period_id);
+            $query->where('assessment_period_id', $request->period_id);
         }
 
         // Filter by status
@@ -60,8 +60,12 @@ class StatusController extends Controller
             'assessor.user',
             'assignment.formVersion.template',
             'assignment.formVersion.sections.items',
+            'statusLogs.changer',
         ]);
 
-        return view('teacher.status.show', compact('assessment'));
+        // Get status logs for timeline
+        $statusLogs = $assessment->statusLogs()->orderBy('created_at', 'desc')->get();
+
+        return view('teacher.status.show', compact('assessment', 'statusLogs'));
     }
 }

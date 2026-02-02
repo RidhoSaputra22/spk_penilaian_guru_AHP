@@ -48,16 +48,21 @@ class AssessmentScoringTest extends TestCase
 
         // Create period and assignment
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
-        KpiFormAssignment::factory()->create([
+        $assignment = KpiFormAssignment::factory()->create([
             'assessment_period_id' => $period->id,
             'form_version_id' => $this->formVersion->id,
         ]);
+
+        // Attach assessor and teacher to assignment
+        $assignment->assessors()->attach($this->assessorProfile->id);
+        $assignment->teachers()->attach($teacher->id);
 
         // Create assessment
         $this->assessment = Assessment::factory()->create([
             'assessor_profile_id' => $this->assessorProfile->id,
             'teacher_profile_id' => $teacher->id,
             'assessment_period_id' => $period->id,
+            'assignment_id' => $assignment->id,
             'status' => 'pending',
         ]);
     }
@@ -141,7 +146,10 @@ class AssessmentScoringTest extends TestCase
     public function assessor_cannot_submit_assessment_without_scores(): void
     {
         $section = KpiFormSection::factory()->create(['form_version_id' => $this->formVersion->id]);
-        KpiFormItem::factory()->create(['section_id' => $section->id]);
+        KpiFormItem::factory()->create([
+            'section_id' => $section->id,
+            'is_required' => true,
+        ]);
 
         $response = $this->actingAs($this->assessor)
             ->post(route('assessor.assessments.submit', $this->assessment));

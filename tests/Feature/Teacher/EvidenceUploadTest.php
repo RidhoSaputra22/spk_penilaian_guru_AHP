@@ -155,7 +155,7 @@ class EvidenceUploadTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHas('success');
 
-        $this->assertDatabaseMissing('evidence_uploads', ['id' => $evidence->id]);
+        $this->assertSoftDeleted('evidence_uploads', ['id' => $evidence->id]);
     }
 
     /** @test */
@@ -185,6 +185,7 @@ class EvidenceUploadTest extends TestCase
         $evidence = EvidenceUpload::factory()->create([
             'assessment_item_value_id' => $this->assessmentItemValue->id,
             'uploaded_by' => $this->teacher->id,
+            'disk' => 'local',
             'path' => $path,
             'original_name' => 'test.pdf',
             'mime_type' => 'application/pdf',

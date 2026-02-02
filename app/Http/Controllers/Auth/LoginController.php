@@ -20,14 +20,16 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
-        $remember = $request->boolean('remember');
-
-        if (Auth::attempt($credentials, $remember)) {
+        if (Auth::attempt($credentials)) {
             $request->session()->regenerate();
 
-            // Check if user is deactivated
-            if (Auth::user()->deactivated_at) {
+            $user = Auth::user();
+
+            // Check if user is deactivated or inactive
+            if ($user->deactivated_at || $user->status === 'inactive') {
                 Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
 
                 return back()->withErrors([
                     'email' => 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator.',
@@ -40,7 +42,8 @@ class LoginController extends Controller
             // dd($user->hasRole('admin'));
 
             if ($user->hasRole('admin') || $user->hasRole('super_admin')) {
-                return redirect()->intended(route('admin.dashboard'));
+
+                return redirect()->route('admin.dashboard');
             }
 
             if ($user->hasRole('assessor')) {

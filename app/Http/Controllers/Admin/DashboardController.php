@@ -10,14 +10,14 @@ use App\Models\AssessmentPeriod;
 use App\Models\AssessorProfile;
 use App\Models\TeacherPeriodResult;
 use App\Models\TeacherProfile;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        // dd(Auth::user());
         $institution = auth()->user()->institution;
-
-        // dd('this is dashboard');
 
         // Get active period
         $activePeriod = AssessmentPeriod::where('institution_id', $institution?->id)
@@ -79,7 +79,7 @@ class DashboardController extends Controller
         $totalCriteria = 0;
         if ($activePeriod) {
             $ahpModel = AhpModel::where('assessment_period_id', $activePeriod->id)->first();
-            $totalCriteria = $ahpModel?->criteriaSet?->criteriaNodes()->count() ?? 0;
+            $totalCriteria = $ahpModel?->criteriaSet?->nodes()->count() ?? 0;
         }
 
         return view('admin.dashboard', compact(

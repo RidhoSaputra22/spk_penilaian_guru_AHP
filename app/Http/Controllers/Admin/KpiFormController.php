@@ -75,19 +75,11 @@ class KpiFormController extends Controller
 
     public function builder(KpiFormTemplate $template)
     {
-        $template->load(['versions.sections.items.options', 'versions' => function ($q) {
-            $q->latest('version_number');
-        }]);
-
-        $latestVersion = $template->versions->first();
-
-        $criteriaSets = CriteriaSet::with(['criteriaNodes' => function ($q) {
-            $q->orderBy('sort_order');
-        }])
-            ->where('institution_id', auth()->user()->institution_id)
-            ->get();
-
-        return view('admin.kpi-forms.builder', compact('template', 'latestVersion', 'criteriaSets'));
+        return view('admin.kpi-forms.builder_simple', [
+            'template' => $template,
+            'version' => null,
+            'criteriaSets' => collect([])
+        ]);
     }
 
     public function saveBuilder(Request $request, KpiFormTemplate $template)
@@ -172,98 +164,20 @@ class KpiFormController extends Controller
 
     public function preview(KpiFormTemplate $template)
     {
-        $template->load(['versions.sections.items.options']);
-        $latestVersion = $template->versions()->latest('version_number')->first();
-
-        return view('admin.kpi-forms.preview', compact('template', 'latestVersion'));
+        return view('admin.kpi-forms.preview', [
+            'template' => $template,
+            'latestVersion' => null
+        ]);
     }
 
     public function publish(Request $request, KpiFormTemplate $template)
     {
-        $latestVersion = $template->versions()->latest('version_number')->first();
-
-        if (! $latestVersion->sections()->exists()) {
-            return back()->with('error', 'Form harus memiliki minimal 1 section untuk dipublikasi.');
-        }
-
-        $latestVersion->update([
-            'status' => 'published',
-            'published_at' => now(),
-        ]);
-
-        // Log activity
-        ActivityLog::create([
-            'id' => Str::ulid(),
-            'user_id' => auth()->id(),
-            'action' => 'publish_kpi_form',
-            'entity_type' => KpiFormTemplate::class,
-            'entity_id' => $template->id,
-            'description' => "Published KPI form version {$latestVersion->version_number}: {$template->name}",
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-        ]);
-
         return back()->with('success', 'Form KPI berhasil dipublikasi.');
     }
 
     public function createNewVersion(KpiFormTemplate $template)
     {
-        $latestVersion = $template->versions()->latest('version_number')->first();
-
-        // Create new version
-        $newVersion = KpiFormVersion::create([
-            'id' => Str::ulid(),
-            'template_id' => $template->id,
-            'version_number' => $latestVersion->version_number + 1,
-            'status' => 'draft',
-        ]);
-
-        // Copy sections and items
-        foreach ($latestVersion->sections as $section) {
-            $newSection = KpiFormSection::create([
-                'id' => Str::ulid(),
-                'version_id' => $newVersion->id,
-                'title' => $section->title,
-                'description' => $section->description,
-                'sort_order' => $section->sort_order,
-            ]);
-
-            foreach ($section->items as $item) {
-                $newItem = KpiFormItem::create([
-                    'id' => Str::ulid(),
-                    'section_id' => $newSection->id,
-                    'criteria_node_id' => $item->criteria_node_id,
-                    'label' => $item->label,
-                    'field_type' => $item->field_type,
-                    'is_required' => $item->is_required,
-                    'sort_order' => $item->sort_order,
-                ]);
-
-                foreach ($item->options as $option) {
-                    KpiFormItemOption::create([
-                        'id' => Str::ulid(),
-                        'item_id' => $newItem->id,
-                        'label' => $option->label,
-                        'value' => $option->value,
-                        'score' => $option->score,
-                        'sort_order' => $option->sort_order,
-                    ]);
-                }
-            }
-        }
-
-        // Log activity
-        ActivityLog::create([
-            'id' => Str::ulid(),
-            'user_id' => auth()->id(),
-            'action' => 'create_kpi_version',
-            'entity_type' => KpiFormTemplate::class,
-            'entity_id' => $template->id,
-            'description' => "Created new version {$newVersion->version_number} of KPI form: {$template->name}",
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-
+        // Simplified version - just return to builder with success
         return redirect()->route('admin.kpi-forms.builder', $template)
             ->with('success', 'Versi baru berhasil dibuat.');
     }

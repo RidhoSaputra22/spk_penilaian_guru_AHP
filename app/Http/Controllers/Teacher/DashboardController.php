@@ -65,12 +65,16 @@ class DashboardController extends Controller
             ->limit(3)
             ->get();
 
+        // Alias for recentResults
+        $recentResults = $latestResults;
+
         return view('teacher.dashboard', compact(
             'teacherProfile',
             'stats',
             'activePeriods',
             'recentAssessments',
-            'latestResults'
+            'latestResults',
+            'recentResults'
         ));
     }
 }

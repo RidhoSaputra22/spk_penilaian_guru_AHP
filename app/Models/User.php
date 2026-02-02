@@ -5,13 +5,13 @@ namespace App\Models;
 // Laravel default imports:
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable, HasUlids, SoftDeletes;
+    use HasFactory, HasUlids, Notifiable, SoftDeletes;
 
     protected $fillable = [
         'institution_id',

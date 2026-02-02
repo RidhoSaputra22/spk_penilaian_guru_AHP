@@ -134,6 +134,7 @@ class CriteriaManagementTest extends TestCase
             ]);
 
         $response->assertRedirect();
+        $response->assertSessionHas('success');
         $this->assertDatabaseHas('criteria_nodes', [
             'id' => $node->id,
             'name' => 'Updated Node Name',

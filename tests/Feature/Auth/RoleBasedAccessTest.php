@@ -2,7 +2,9 @@
 
 namespace Tests\Feature\Auth;
 
+use App\Models\AssessorProfile;
 use App\Models\Role;
+use App\Models\TeacherProfile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -53,6 +55,7 @@ class RoleBasedAccessTest extends TestCase
         $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessor = User::factory()->create();
         $assessor->roles()->attach($role);
+        AssessorProfile::factory()->create(['user_id' => $assessor->id]);
 
         $response = $this->actingAs($assessor)->get(route('assessor.dashboard'));
         $response->assertStatus(200);
@@ -86,6 +89,7 @@ class RoleBasedAccessTest extends TestCase
         $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacher = User::factory()->create();
         $teacher->roles()->attach($role);
+        TeacherProfile::factory()->create(['user_id' => $teacher->id]);
 
         $response = $this->actingAs($teacher)->get(route('teacher.dashboard'));
         $response->assertStatus(200);
@@ -134,6 +138,7 @@ class RoleBasedAccessTest extends TestCase
 
         $user = User::factory()->create();
         $user->roles()->attach([$adminRole->id, $assessorRole->id]);
+        AssessorProfile::factory()->create(['user_id' => $user->id]);
 
         // Can access admin routes
         $response = $this->actingAs($user)->get(route('admin.dashboard'));

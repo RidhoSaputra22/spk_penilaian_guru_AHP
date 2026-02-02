@@ -22,13 +22,15 @@ class ResultController extends Controller
             ]);
         }
 
-        $query = TeacherPeriodResult::with(['period'])
+        $query = TeacherPeriodResult::with(['period', 'periodResult'])
             ->where('teacher_profile_id', $teacherProfile->id)
             ->orderBy('created_at', 'desc');
 
         // Filter by period
         if ($request->filled('period_id')) {
-            $query->where('period_id', $request->period_id);
+            $query->whereHas('periodResult', function($q) use ($request) {
+                $q->where('assessment_period_id', $request->period_id);
+            });
         }
 
         $results = $query->paginate(10);
@@ -51,20 +53,26 @@ class ResultController extends Controller
             abort(403, 'Anda tidak memiliki akses ke hasil ini.');
         }
 
-        $result->load('period');
+        $result->load(['period', 'periodResult', 'criteriaScores.criteriaNode']);
+
+        // Get the assessment_period_id from periodResult
+        $assessmentPeriodId = $result->periodResult?->assessment_period_id;
 
         // Get assessments for this period
-        $assessments = Assessment::with([
-            'assessor.user',
-            'itemValues.formItem.section',
-        ])
-            ->where('teacher_profile_id', $teacherProfile->id)
-            ->where('period_id', $result->period_id)
-            ->whereIn('status', ['submitted', 'finalized'])
-            ->get();
+        $assessments = collect();
+        if ($assessmentPeriodId) {
+            $assessments = Assessment::with([
+                'assessor.user',
+                'itemValues.formItem.section',
+            ])
+                ->where('teacher_profile_id', $teacherProfile->id)
+                ->where('assessment_period_id', $assessmentPeriodId)
+                ->whereIn('status', ['submitted', 'finalized'])
+                ->get();
+        }
 
-        // Get criteria scores
-        $criteriaScores = $result->criteria_scores ?? [];
+        // Get criteria scores from the result's relation
+        $criteriaScores = $result->criteriaScores ?? collect();
 
         return view('teacher.results.show', compact('result', 'assessments', 'criteriaScores'));
     }
@@ -79,19 +87,25 @@ class ResultController extends Controller
             abort(403, 'Anda tidak memiliki akses ke hasil ini.');
         }
 
-        $result->load('period');
+        $result->load(['period', 'periodResult', 'criteriaScores.criteriaNode']);
+
+        // Get the assessment_period_id from periodResult
+        $assessmentPeriodId = $result->periodResult?->assessment_period_id;
 
         // Get assessments
-        $assessments = Assessment::with([
-            'assessor.user',
-            'itemValues.formItem.section',
-        ])
-            ->where('teacher_profile_id', $teacherProfile->id)
-            ->where('period_id', $result->period_id)
-            ->whereIn('status', ['submitted', 'finalized'])
-            ->get();
+        $assessments = collect();
+        if ($assessmentPeriodId) {
+            $assessments = Assessment::with([
+                'assessor.user',
+                'itemValues.formItem.section',
+            ])
+                ->where('teacher_profile_id', $teacherProfile->id)
+                ->where('assessment_period_id', $assessmentPeriodId)
+                ->whereIn('status', ['submitted', 'finalized'])
+                ->get();
+        }
 
-        $criteriaScores = $result->criteria_scores ?? [];
+        $criteriaScores = $result->criteriaScores ?? collect();
 
         // Check if DomPDF is available
         if (class_exists(\Barryvdh\DomPDF\Facade\Pdf::class)) {

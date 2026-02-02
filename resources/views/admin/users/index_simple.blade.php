@@ -4,41 +4,46 @@
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
-            <h1>Hasil Penilaian</h1>
-            
+            <h1>Manajemen User</h1>
+
             <div class="card">
                 <div class="card-body">
-                    <h5 class="card-title">Daftar Hasil Penilaian</h5>
-                    
-                    @if(count($results) > 0)
+                    <h5 class="card-title">Daftar User</h5>
+
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>ID</th>
-                                    <th>Teacher</th>
-                                    <th>Final Score</th>
-                                    <th>Ranking</th>
+                                    <th>Nama</th>
+                                    <th>Email</th>
                                     <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($results as $result)
+                                @forelse($users as $user)
                                 <tr>
-                                    <td>{{ $result['id'] ?? 'N/A' }}</td>
-                                    <td>{{ $result['teacher']['user']['name'] ?? 'N/A' }}</td>
-                                    <td>{{ $result['final_score'] ?? 'N/A' }}</td>
-                                    <td>{{ $result['ranking'] ?? 'N/A' }}</td>
+                                    <td>{{ $user->id }}</td>
+                                    <td>{{ $user->name }}</td>
+                                    <td>{{ $user->email }}</td>
                                     <td>
                                         <a href="#" class="btn btn-sm btn-primary">View</a>
+                                        <a href="#" class="btn btn-sm btn-secondary">Edit</a>
                                     </td>
                                 </tr>
-                                @endforeach
+                                @empty
+                                <tr>
+                                    <td colspan="4" class="text-center">Belum ada data user</td>
+                                </tr>
+                                @endforelse
                             </tbody>
                         </table>
                     </div>
-                    @else
-                    <p>Belum ada data hasil penilaian.</p>
+
+                    @if($users->hasPages())
+                    <div class="d-flex justify-content-center">
+                        {{ $users->links() }}
+                    </div>
                     @endif
                 </div>
             </div>

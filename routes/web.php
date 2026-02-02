@@ -1,31 +1,29 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\LoginController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\PeriodController;
-use App\Http\Controllers\Admin\CriteriaController;
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\AhpController;
+use App\Http\Controllers\Admin\AssessmentController;
+use App\Http\Controllers\Admin\AssessorController;
+use App\Http\Controllers\Admin\CriteriaController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\KpiFormController;
+use App\Http\Controllers\Admin\PeriodController;
 use App\Http\Controllers\Admin\ResultController;
 use App\Http\Controllers\Admin\TeacherController;
-use App\Http\Controllers\Admin\AssessorController;
-use App\Http\Controllers\Admin\AssessmentController;
-use App\Http\Controllers\Admin\ActivityLogController;
-
-// Assessor Controllers
-use App\Http\Controllers\Assessor\DashboardController as AssessorDashboardController;
-use App\Http\Controllers\Assessor\ProfileController as AssessorProfileController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Assessor\AssessmentController as AssessorAssessmentController;
+use App\Http\Controllers\Assessor\DashboardController as AssessorDashboardController;
+// Assessor Controllers
+use App\Http\Controllers\Assessor\ProfileController as AssessorProfileController;
 use App\Http\Controllers\Assessor\ResultController as AssessorResultController;
-
-// Teacher Controllers
+use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Teacher\DashboardController as TeacherDashboardController;
-use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
-use App\Http\Controllers\Teacher\StatusController as TeacherStatusController;
+// Teacher Controllers
 use App\Http\Controllers\Teacher\EvidenceController as TeacherEvidenceController;
+use App\Http\Controllers\Teacher\ProfileController as TeacherProfileController;
 use App\Http\Controllers\Teacher\ResultController as TeacherResultController;
+use App\Http\Controllers\Teacher\StatusController as TeacherStatusController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -53,7 +51,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->midd
 | Admin Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('admin.')->group(function () {
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -69,7 +67,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // Criteria Management
     Route::get('criteria', [CriteriaController::class, 'index'])->name('criteria.index');
     Route::post('criteria', [CriteriaController::class, 'storeSet'])->name('criteria.store');
-    Route::get('criteria/sets/create', function() {
+    Route::get('criteria/sets/create', function () {
         return view('admin.criteria.create');
     })->name('criteria.sets.create');
     Route::post('criteria/sets', [CriteriaController::class, 'storeSet'])->name('criteria.store-set');
@@ -121,25 +119,25 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 
     // Placeholder routes for views
-    Route::get('scoring-scales', function() {
+    Route::get('scoring-scales', function () {
         return view('admin.scoring-scales.index');
     })->name('scoring-scales.index');
 
-    Route::get('kpi-assignments', function() {
+    Route::get('kpi-assignments', function () {
         return view('admin.kpi-assignments.index');
     })->name('kpi-assignments.index');
 
-    Route::get('reports', function() {
+    Route::get('reports', function () {
         return view('admin.reports.index');
     })->name('reports.index');
 
     // Profile (placeholder)
-    Route::get('profile', function() {
+    Route::get('profile', function () {
         return view('admin.profile.edit');
     })->name('profile.edit');
 
     // Settings (placeholder)
-    Route::get('settings', function() {
+    Route::get('settings', function () {
         return view('admin.settings.index');
     })->name('settings.index');
 });
@@ -149,7 +147,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 | Assessor Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->prefix('assessor')->name('assessor.')->group(function () {
+Route::middleware(['auth', 'role:assessor'])->prefix('assessor')->name('assessor.')->group(function () {
     // Dashboard
     Route::get('/', [AssessorDashboardController::class, 'index'])->name('dashboard');
 
@@ -175,7 +173,8 @@ Route::middleware(['auth'])->prefix('assessor')->name('assessor.')->group(functi
 | Teacher Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth'])->prefix('teacher')->name('teacher.')->group(function () {
+Route::middleware(['auth', 'role:teacher'])->prefix('teacher')->name('teacher.')->group(function () {
+
     // Dashboard
     Route::get('/', [TeacherDashboardController::class, 'index'])->name('dashboard');
 

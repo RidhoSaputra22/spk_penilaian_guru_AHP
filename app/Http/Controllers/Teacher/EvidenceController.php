@@ -20,6 +20,7 @@ class EvidenceController extends Controller
         if (!$teacherProfile) {
             return view('teacher.evidence.index', [
                 'assessments' => collect(),
+                'evidenceUploads' => collect(),
             ]);
         }
 
@@ -30,6 +31,7 @@ class EvidenceController extends Controller
             'assignment.formVersion.sections.items' => function ($query) {
                 $query->where('requires_evidence', true);
             },
+            'itemValues',
         ])
             ->where('teacher_profile_id', $teacherProfile->id)
             ->whereIn('status', ['pending', 'draft', 'in_progress'])
@@ -39,12 +41,19 @@ class EvidenceController extends Controller
             ->orderBy('created_at', 'desc')
             ->get();
 
+        // Get assessment item value IDs
+        $assessmentItemValueIds = $assessments->flatMap(function($assessment) {
+            return $assessment->itemValues->pluck('id');
+        });
+
         // Get existing evidence uploads
         $evidenceUploads = EvidenceUpload::where('uploaded_by', $user->id)
-            ->whereIn('assessment_id', $assessments->pluck('id'))
+            ->whereIn('assessment_item_value_id', $assessmentItemValueIds)
+            ->with('itemValue')
             ->get()
             ->keyBy(function ($item) {
-                return $item->assessment_id . '-' . $item->form_item_id;
+                $meta = $item->meta ?? [];
+                return ($meta['assessment_id'] ?? '') . '-' . ($meta['form_item_id'] ?? '');
             });
 
         return view('teacher.evidence.index', compact('assessments', 'evidenceUploads'));
@@ -60,28 +69,29 @@ class EvidenceController extends Controller
             abort(403, 'Anda tidak memiliki akses.');
         }
 
+        // Verify assessment is not submitted/finalized
+        if (in_array($assessment->status, ['submitted', 'finalized'])) {
+            abort(403, 'Tidak dapat mengunggah bukti untuk penilaian yang sudah disubmit.');
+        }
+
         // Verify period is active
         if ($assessment->period->status !== 'active') {
             return back()->with('error', 'Periode penilaian sudah ditutup.');
         }
 
-        $request->validate([
-            'file' => ['required', 'file', 'max:10240'], // Max 10MB
+        // Validation rules
+        $rules = [
             'description' => ['nullable', 'string', 'max:500'],
-            'link' => ['nullable', 'url', 'max:500'],
-        ]);
+        ];
 
-        // Determine file type
-        $allowedTypes = $this->getAllowedTypes($item);
-        if ($request->hasFile('file')) {
-            $extension = $request->file('file')->getClientOriginalExtension();
-            $mimeType = $request->file('file')->getMimeType();
-
-            // Validate file type if restricted
-            if (!empty($allowedTypes) && !$this->isAllowedType($mimeType, $extension, $allowedTypes)) {
-                return back()->with('error', 'Tipe file tidak diizinkan untuk indikator ini.');
-            }
+        // Check if it's a link or file upload
+        if ($request->input('type') === 'link') {
+            $rules['url'] = ['required', 'url', 'max:500'];
+        } else {
+            $rules['file'] = ['required', 'file', 'max:10240', 'mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif,webp'];
         }
+
+        $request->validate($rules);
 
         // Find assessment item value to link the evidence
         $assessmentItemValue = AssessmentItemValue::where('assessment_id', $assessment->id)
@@ -105,7 +115,7 @@ class EvidenceController extends Controller
         }
 
         // Upload new file
-        $filePath = null;
+        $filePath = '';  // Default to empty string since column is not nullable
         $fileName = null;
         $fileSize = null;
         $fileType = null;
@@ -127,7 +137,7 @@ class EvidenceController extends Controller
             'original_name' => $fileName,
             'size' => $fileSize,
             'mime_type' => $fileType,
-            'url' => $request->link,
+            'url' => $request->url,
             'meta' => [
                 'assessment_id' => $assessment->id,
                 'form_item_id' => $item->id,
@@ -154,8 +164,9 @@ class EvidenceController extends Controller
         }
 
         // Delete file
-        if ($evidence->path) {
-            Storage::disk('public')->delete($evidence->path);
+        $disk = $evidence->disk ?? 'public';
+        if ($evidence->path && $evidence->path !== '') {
+            Storage::disk($disk)->delete($evidence->path);
         }
 
         $evidence->delete();
@@ -174,11 +185,12 @@ class EvidenceController extends Controller
             abort(403, 'Anda tidak memiliki akses.');
         }
 
-        if (!$evidence->path || !Storage::disk('public')->exists($evidence->path)) {
+        $disk = $evidence->disk ?? 'public';
+        if (!$evidence->path || !Storage::disk($disk)->exists($evidence->path)) {
             abort(404, 'File tidak ditemukan.');
         }
 
-        return Storage::disk('public')->download($evidence->path, $evidence->original_name);
+        return Storage::disk($disk)->download($evidence->path, $evidence->original_name);
     }
 
     private function getAllowedTypes(KpiFormItem $item): array

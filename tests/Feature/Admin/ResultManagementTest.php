@@ -38,7 +38,7 @@ class ResultManagementTest extends TestCase
     /** @test */
     public function admin_can_view_result_details(): void
     {
-        $result = PeriodResult::factory()->create();
+        $result = \App\Models\TeacherPeriodResult::factory()->create();
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.results.show', $result));
@@ -56,6 +56,7 @@ class ResultManagementTest extends TestCase
                 'period_id' => $period->id,
             ]);
 
+        // Will redirect (either with success or error about missing AHP model)
         $response->assertRedirect();
     }
 
@@ -68,8 +69,8 @@ class ResultManagementTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->get(route('admin.results.export', ['period_id' => $period->id]));
 
-        // Should return file download or redirect
-        $this->assertTrue(in_array($response->status(), [200, 302]));
+        // Should return file download (streamed response) or redirect
+        $response->assertSuccessful();
     }
 
     /** @test */

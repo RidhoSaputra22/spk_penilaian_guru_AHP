@@ -109,6 +109,16 @@ class AssessmentController extends Controller
                 ->with('error', 'Profil penilai tidak ditemukan.');
         }
 
+        // Check if there's an existing assessment for this teacher by another assessor
+        $existingAssessmentByOther = Assessment::where('assessment_period_id', $period->id)
+            ->where('teacher_profile_id', $teacher->id)
+            ->where('assessor_profile_id', '!=', $assessorProfile->id)
+            ->first();
+
+        if ($existingAssessmentByOther) {
+            abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
+        }
+
         // Find the assignment for this teacher in this period
         $assignment = KpiFormAssignment::where('assessment_period_id', $period->id)
             ->whereHas('assessors', function ($query) use ($assessorProfile) {
@@ -125,8 +135,7 @@ class AssessmentController extends Controller
             ->first();
 
         if (!$assignment) {
-            return redirect()->route('assessor.assessments.period', $period)
-                ->with('error', 'Penugasan tidak ditemukan untuk guru ini.');
+            abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
         }
 
         // Check if period is still open for scoring
@@ -177,13 +186,40 @@ class AssessmentController extends Controller
 
         // Verify ownership
         if ($assessment->assessor_profile_id !== $assessorProfile->id) {
-            return response()->json(['error' => 'Unauthorized'], 403);
+            if ($request->ajax()) {
+                return response()->json(['error' => 'Unauthorized'], 403);
+            }
+            abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
         }
 
         // Verify status allows editing
         if (in_array($assessment->status, ['submitted', 'finalized'])) {
-            return response()->json(['error' => 'Penilaian sudah disubmit dan tidak dapat diubah.'], 403);
+            if ($request->ajax()) {
+                return response()->json(['error' => 'Penilaian sudah disubmit dan tidak dapat diubah.'], 403);
+            }
+            abort(403, 'Penilaian sudah disubmit dan tidak dapat diubah.');
         }
+
+        // Validate scores if provided
+        $scores = $request->input('scores', []);
+        $values = $request->input('values', []);
+
+        // Merge scores into values for unified processing
+        foreach ($scores as $itemId => $scoreData) {
+            if (is_array($scoreData) && isset($scoreData['score'])) {
+                // Validate score range
+                $score = $scoreData['score'];
+                if ($score !== null && $score !== '' && (floatval($score) < 0 || floatval($score) > 100)) {
+                    return redirect()->back()
+                        ->withErrors(['scores' => 'Nilai skor harus antara 0 dan 100.'])
+                        ->withInput();
+                }
+                $values[$itemId] = $score;
+            }
+        }
+
+        // Replace scores with validated values
+        $request->merge(['values' => $values]);
 
         $this->saveAssessmentValues($request, $assessment);
 
@@ -216,13 +252,24 @@ class AssessmentController extends Controller
                 ->with('error', 'Penilaian sudah disubmit.');
         }
 
-        // Save values first
-        $this->saveAssessmentValues($request, $assessment);
+        // Save values first if provided
+        if ($request->has('values') || $request->has('scores')) {
+            $scores = $request->input('scores', []);
+            $values = $request->input('values', []);
+
+            foreach ($scores as $itemId => $scoreData) {
+                if (is_array($scoreData) && isset($scoreData['score'])) {
+                    $values[$itemId] = $scoreData['score'];
+                }
+            }
+            $request->merge(['values' => $values]);
+            $this->saveAssessmentValues($request, $assessment);
+        }
 
         // Validate all required fields are filled
         $formVersion = $assessment->assignment->formVersion;
         $requiredItems = $formVersion->sections->flatMap->items->where('is_required', true);
-        $filledItems = $assessment->itemValues()->pluck('form_item_id')->toArray();
+        $filledItems = $assessment->itemValues()->whereNotNull('score_value')->pluck('form_item_id')->toArray();
 
         $missingItems = $requiredItems->filter(function ($item) use ($filledItems) {
             return !in_array($item->id, $filledItems);
@@ -230,7 +277,7 @@ class AssessmentController extends Controller
 
         if ($missingItems->isNotEmpty()) {
             return redirect()->back()
-                ->with('error', 'Masih ada ' . $missingItems->count() . ' indikator wajib yang belum diisi.');
+                ->withErrors(['scores' => 'Masih ada ' . $missingItems->count() . ' indikator wajib yang belum diisi.']);
         }
 
         DB::transaction(function () use ($assessment) {

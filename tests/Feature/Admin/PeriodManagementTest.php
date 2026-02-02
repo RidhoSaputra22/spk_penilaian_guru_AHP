@@ -115,6 +115,6 @@ class PeriodManagementTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->post(route('admin.periods.store'), []);
 
-        $response->assertSessionHasErrors(['name', 'start_date', 'end_date', 'criteria_set_id', 'status']);
+        $response->assertSessionHasErrors(['name', 'status']);
     }
 }

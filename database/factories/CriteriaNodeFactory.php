@@ -19,7 +19,7 @@ class CriteriaNodeFactory extends Factory
             'criteria_set_id' => CriteriaSet::factory(),
             'parent_id' => null,
             'node_type' => $this->faker->randomElement(['goal', 'criteria', 'subcriteria', 'indicator']),
-            'code' => $this->faker->optional()->bothify('C##'),
+            'code' => $this->faker->bothify('C##'),
             'name' => $this->faker->words(3, true),
             'description' => $this->faker->optional()->sentence(),
             'sort_order' => $this->faker->numberBetween(0, 20),
