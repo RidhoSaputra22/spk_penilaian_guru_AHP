@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\AssessmentPeriodStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\AhpModel;
@@ -22,7 +21,7 @@ class DashboardController extends Controller
 
         // Get active period
         $activePeriod = AssessmentPeriod::where('institution_id', $institution?->id)
-            ->where('status', AssessmentPeriodStatus::Open)
+            ->where('status', 'open')
             ->first();
 
         // Stats

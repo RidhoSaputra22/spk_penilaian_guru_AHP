@@ -18,9 +18,38 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        // Simplified version - just get users without complex relationships
-        $users = User::paginate(10);
-        $roles = [];
+        $institution = auth()->user()->institution;
+
+        $query = User::with(['roles'])
+            ->where('institution_id', $institution?->id);
+
+        // Search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Role filter
+        if ($request->filled('role')) {
+            $query->whereHas('roles', function($q) use ($request) {
+                $q->where('key', $request->role);
+            });
+        }
+
+        // Status filter
+        if ($request->filled('status')) {
+            if ($request->status === 'active') {
+                $query->whereNull('deactivated_at');
+            } else {
+                $query->whereNotNull('deactivated_at');
+            }
+        }
+
+        $users = $query->latest()->paginate(10)->withQueryString();
+        $roles = Role::all();
 
         return view('admin.users.index', compact('users', 'roles'));
     }
@@ -190,12 +219,12 @@ class UserController extends Controller
 
     public function toggleStatus(User $user)
     {
-        if ($user->status === 'inactive') {
-            $user->update(['status' => 'active']);
+        if ($user->deactivated_at) {
+            $user->update(['deactivated_at' => null]);
             $action = 'activate_user';
             $message = 'Pengguna berhasil diaktifkan.';
         } else {
-            $user->update(['status' => 'inactive']);
+            $user->update(['deactivated_at' => now()]);
             $action = 'deactivate_user';
             $message = 'Pengguna berhasil dinonaktifkan.';
         }

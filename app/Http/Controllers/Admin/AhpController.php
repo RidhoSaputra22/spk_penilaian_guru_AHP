@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Enums\AhpModelStatus;
-use App\Enums\AssessmentPeriodStatus;
 use App\Http\Controllers\Controller;
-use App\Models\AhpModel;
+use App\Models\ActivityLog;
 use App\Models\AhpComparison;
+use App\Models\AhpModel;
 use App\Models\AhpWeight;
 use App\Models\AssessmentPeriod;
 use App\Models\CriteriaNode;
-use App\Models\ActivityLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -85,7 +83,7 @@ class AhpController extends Controller
             'id' => Str::ulid(),
             'assessment_period_id' => $period->id,
             'criteria_set_id' => $validated['criteria_set_id'],
-            'status' => AhpModelStatus::Draft,
+            'status' => 'draft',
         ]);
 
         // Log activity
@@ -104,7 +102,7 @@ class AhpController extends Controller
             ->with('success', 'Model AHP berhasil dibuat.');
     }
 
-    public function saveComparisons(Request $request, AhpModel $ahpModel = null)
+    public function saveComparisons(Request $request, ?AhpModel $ahpModel = null)
     {
         $validated = $request->validate([
             'ahp_model_id' => $ahpModel ? ['nullable'] : ['required', 'exists:ahp_models,id'],
@@ -142,7 +140,7 @@ class AhpController extends Controller
             'action' => 'save_ahp_comparisons',
             'entity_type' => AhpModel::class,
             'entity_id' => $ahpModel->id,
-            'description' => "Saved AHP comparisons and calculated weights",
+            'description' => 'Saved AHP comparisons and calculated weights',
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);
@@ -167,7 +165,9 @@ class AhpController extends Controller
             ->values();
 
         $n = $criteriaIds->count();
-        if ($n == 0) return;
+        if ($n == 0) {
+            return;
+        }
 
         // Build comparison matrix
         $matrix = [];
@@ -176,7 +176,7 @@ class AhpController extends Controller
                 if ($i == $j) {
                     $matrix[$i][$j] = 1;
                 } else {
-                    $comparison = $comparisons->first(function($c) use ($criteriaIds, $i, $j) {
+                    $comparison = $comparisons->first(function ($c) use ($criteriaIds, $i, $j) {
                         return $c->criteria_i_id == $criteriaIds[$i] && $c->criteria_j_id == $criteriaIds[$j];
                     });
 
@@ -184,7 +184,7 @@ class AhpController extends Controller
                         $matrix[$i][$j] = $comparison->value;
                     } else {
                         // Try reverse
-                        $reverse = $comparisons->first(function($c) use ($criteriaIds, $i, $j) {
+                        $reverse = $comparisons->first(function ($c) use ($criteriaIds, $i, $j) {
                             return $c->criteria_i_id == $criteriaIds[$j] && $c->criteria_j_id == $criteriaIds[$i];
                         });
                         $matrix[$i][$j] = $reverse ? (1 / $reverse->value) : 1;
@@ -252,7 +252,7 @@ class AhpController extends Controller
         }
 
         $ahpModel->update([
-            'status' => AhpModelStatus::Finalized,
+            'status' => 'finalized',
             'finalized_at' => now(),
             'finalized_by' => auth()->id(),
         ]);
@@ -274,7 +274,7 @@ class AhpController extends Controller
 
     public function reset(AhpModel $ahpModel)
     {
-        if ($ahpModel->status === AhpModelStatus::Finalized) {
+        if ($ahpModel->status === 'finalized') {
             return back()->with('error', 'Model AHP yang sudah final tidak dapat direset.');
         }
 
@@ -284,7 +284,7 @@ class AhpController extends Controller
 
         $ahpModel->update([
             'consistency_ratio' => null,
-            'status' => AhpModelStatus::Draft,
+            'status' => 'draft',
         ]);
 
         // Log activity
@@ -294,7 +294,7 @@ class AhpController extends Controller
             'action' => 'reset_ahp_model',
             'entity_type' => AhpModel::class,
             'entity_id' => $ahpModel->id,
-            'description' => "Reset AHP model",
+            'description' => 'Reset AHP model',
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
         ]);
