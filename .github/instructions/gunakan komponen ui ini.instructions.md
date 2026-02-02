@@ -16,3 +16,10 @@ recources/views/components/ui/stat.blade.php
 recources/views/components/ui/table.blade.php  
 recources/views/components/ui/textarea.blade.php  
 recources/views/components/ui/toast.blade.php  
+
+
+perhatikan cara penggunaan select component berikut:
+
+```blade
+<x-ui.select label="Pilih Kategori" name="category" :options="$categories" selected="{{ old('category', $selectedCategory) }}" />
+``` 

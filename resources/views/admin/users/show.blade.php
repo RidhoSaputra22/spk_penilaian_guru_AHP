@@ -19,7 +19,8 @@
         <div class="flex gap-2">
             <a href="{{ route('admin.users.edit', $user) }}" class="btn btn-primary btn-sm">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                 </svg>
                 Edit
             </a>
@@ -55,10 +56,10 @@
                     <label class="label">
                         <span class="label-text font-semibold">Status</span>
                     </label>
-                    @if($user->deactivated_at)
-                        <x-ui.badge variant="error">Nonaktif</x-ui.badge>
+                    @if($user->status === 'inactive')
+                    <x-ui.badge variant="error">Nonaktif</x-ui.badge>
                     @else
-                        <x-ui.badge variant="success">Aktif</x-ui.badge>
+                    <x-ui.badge variant="success">Aktif</x-ui.badge>
                     @endif
                 </div>
 
@@ -91,29 +92,24 @@
     <!-- Actions -->
     <x-ui.card title="Tindakan">
         <div class="flex flex-wrap gap-3">
-            <form method="POST" action="{{ route('admin.users.reset-password', $user) }}">
-                @csrf
-                <x-ui.button variant="outline" type="submit" onclick="return confirm('Yakin reset password pengguna ini?')">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
-                    </svg>
-                    Reset Password
-                </x-ui.button>
-            </form>
+
 
             <form method="POST" action="{{ route('admin.users.toggle-status', $user) }}">
                 @csrf
-                <x-ui.button variant="{{ $user->deactivated_at ? 'success' : 'warning' }}" type="submit" onclick="return confirm('Yakin mengubah status pengguna ini?')">
+                <x-ui.button variant="{{ $user->status === 'inactive' ? 'success' : 'warning' }}" type="submit"
+                    onclick="return confirm('Yakin mengubah status pengguna ini?')">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
                     </svg>
-                    {{ $user->deactivated_at ? 'Aktifkan' : 'Nonaktifkan' }}
+                    {{ $user->status === 'inactive' ? 'Aktifkan' : 'Nonaktifkan' }}
                 </x-ui.button>
             </form>
 
             <button onclick="deleteModal.showModal()" class="btn btn-error btn-outline">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
                 Hapus Pengguna
             </button>
@@ -126,19 +122,24 @@
     <form method="POST" action="{{ route('admin.users.destroy', $user) }}" class="space-y-4">
         @csrf
         @method('DELETE')
-        <x-ui.alert type="warning">
-            <strong>Peringatan!</strong> Tindakan ini tidak dapat dibatalkan.
-        </x-ui.alert>
+        <div class="alert alert-warning">
+            <svg class="stroke-current shrink-0 w-6 h-6" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z">
+                </path>
+            </svg>
+            <span><strong>Peringatan!</strong> Tindakan ini tidak dapat dibatalkan.</span>
+        </div>
         <p>Apakah Anda yakin ingin menghapus pengguna <strong>{{ $user->name }}</strong>?</p>
 
-        <x-slot name="actions">
-            <x-ui.button variant="outline" type="button" onclick="deleteModal.close()">
+        <div class="modal-action">
+            <button type="button" class="btn" onclick="deleteModal{{ str_replace('-', '', $user->id) }}.close()">
                 Batal
-            </x-ui.button>
-            <x-ui.button variant="error" type="submit">
+            </button>
+            <button type="submit" class="btn btn-error">
                 Hapus
-            </x-ui.button>
-        </x-slot>
+            </button>
+        </div>
     </form>
 </x-ui.modal>
 @endsection

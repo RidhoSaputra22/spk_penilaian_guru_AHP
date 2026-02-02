@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\User;
+use App\Models\ActivityLog;
+use App\Models\AssessorProfile;
 use App\Models\Role;
 use App\Models\TeacherGroup;
 use App\Models\TeacherProfile;
-use App\Models\AssessorProfile;
-use App\Models\ActivityLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -26,7 +26,7 @@ class UserController extends Controller
         // Search filter
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
@@ -34,18 +34,14 @@ class UserController extends Controller
 
         // Role filter
         if ($request->filled('role')) {
-            $query->whereHas('roles', function($q) use ($request) {
+            $query->whereHas('roles', function ($q) use ($request) {
                 $q->where('key', $request->role);
             });
         }
 
         // Status filter
         if ($request->filled('status')) {
-            if ($request->status === 'active') {
-                $query->whereNull('deactivated_at');
-            } else {
-                $query->whereNotNull('deactivated_at');
-            }
+            $query->where('status', $request->status);
         }
 
         $users = $query->latest()->paginate(10)->withQueryString();
@@ -54,13 +50,13 @@ class UserController extends Controller
         return view('admin.users.index', compact('users', 'roles'));
     }
 
-    public function create()
+    public function create(Request $request)
     {
         $roles = Role::all();
         $institution = auth()->user()->institution;
         $teacherGroups = TeacherGroup::where('institution_id', $institution?->id)->get();
 
-        return view('admin.users.create', compact('roles', 'teacherGroups'));
+        return view('admin.users.create', compact('roles', 'teacherGroups', 'request'));
     }
 
     public function store(Request $request)
@@ -69,15 +65,14 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::defaults()],
-            'roles' => ['required', 'array'],
-            'roles.*' => ['exists:roles,id'],
+            'role' => ['required', 'string', 'in:admin,assessor,teacher'],
+            'status' => ['required', 'string', 'in:active,inactive'],
             // Teacher fields
             'employee_no' => ['nullable', 'string', 'max:50'],
             'subject' => ['nullable', 'string', 'max:100'],
             'employment_status' => ['nullable', 'string', 'max:50'],
             'position' => ['nullable', 'string', 'max:100'],
-            'teacher_group_ids' => ['nullable', 'array'],
-            'teacher_group_ids.*' => ['exists:teacher_groups,id'],
+            'teacher_group_id' => ['nullable', 'exists:teacher_groups,id'],
             // Assessor fields
             'assessor_type' => ['nullable', 'string', 'in:principal,supervisor,peer'],
         ]);
@@ -89,13 +84,17 @@ class UserController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'email_verified_at' => now(),
+            'status' => $validated['status'],
         ]);
 
-        $user->roles()->attach($validated['roles']);
+        // Find and attach role
+        $role = Role::where('key', $validated['role'])->first();
+        if ($role) {
+            $user->roles()->attach($role->id);
+        }
 
         // Check if teacher role is selected
-        $teacherRole = Role::where('key', 'teacher')->first();
-        if ($teacherRole && in_array($teacherRole->id, $validated['roles'])) {
+        if ($validated['role'] === 'teacher') {
             $teacherProfile = TeacherProfile::create([
                 'id' => Str::ulid(),
                 'user_id' => $user->id,
@@ -105,15 +104,14 @@ class UserController extends Controller
                 'position' => $validated['position'] ?? null,
             ]);
 
-            // Attach teacher to groups (many-to-many)
-            if (!empty($validated['teacher_group_ids'])) {
-                $teacherProfile->groups()->attach($validated['teacher_group_ids']);
+            // Attach teacher to group if selected
+            if (! empty($validated['teacher_group_id'])) {
+                $teacherProfile->groups()->attach($validated['teacher_group_id']);
             }
         }
 
         // Check if assessor role is selected
-        $assessorRole = Role::where('key', 'assessor')->first();
-        if ($assessorRole && in_array($assessorRole->id, $validated['roles'])) {
+        if ($validated['role'] === 'assessor') {
             AssessorProfile::create([
                 'id' => Str::ulid(),
                 'user_id' => $user->id,
@@ -147,25 +145,101 @@ class UserController extends Controller
 
     public function edit(User $user)
     {
-        // Simplified edit method
-        $roles = [];
-        $teacherGroups = [];
+        $user->load(['roles', 'teacherProfile.groups', 'assessorProfile']);
+        $roles = Role::all();
+        $institution = auth()->user()->institution;
+        $teacherGroups = TeacherGroup::where('institution_id', $institution?->id)->get();
 
         return view('admin.users.edit', compact('user', 'roles', 'teacherGroups'));
     }
 
     public function update(Request $request, User $user)
     {
-        // Simplified update - just basic fields, make roles optional
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'email', 'max:255'],
-            'roles' => ['nullable', 'array'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$user->id],
+            'password' => ['nullable', 'confirmed', Password::defaults()],
+            'role' => ['required', 'string', 'in:admin,assessor,teacher'],
+            'status' => ['required', 'string', 'in:active,inactive'],
+            // Teacher fields
+            'employee_no' => ['nullable', 'string', 'max:50'],
+            'subject' => ['nullable', 'string', 'max:100'],
+            'employment_status' => ['nullable', 'string', 'max:50'],
+            'position' => ['nullable', 'string', 'max:100'],
+            'teacher_group_id' => ['nullable', 'exists:teacher_groups,id'],
+            // Assessor fields
+            'assessor_type' => ['nullable', 'string', 'in:principal,supervisor,peer'],
         ]);
 
-        $user->update([
+        // Update basic fields
+        $updateData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
+            'status' => $validated['status'],
+        ];
+
+        // Update password if provided
+        if ($request->filled('password')) {
+            $updateData['password'] = Hash::make($validated['password']);
+        }
+
+        $user->update($updateData);
+
+        // Update role if changed
+        $newRole = Role::where('key', $validated['role'])->first();
+        if ($newRole) {
+            $user->roles()->sync([$newRole->id]);
+        }
+
+        // Handle profile updates based on role
+        if ($validated['role'] === 'teacher') {
+            $teacherProfile = $user->teacherProfile;
+            if (! $teacherProfile) {
+                $teacherProfile = TeacherProfile::create([
+                    'id' => Str::ulid(),
+                    'user_id' => $user->id,
+                ]);
+            }
+
+            $teacherProfile->update([
+                'employee_no' => $validated['employee_no'] ?? null,
+                'subject' => $validated['subject'] ?? null,
+                'employment_status' => $validated['employment_status'] ?? null,
+                'position' => $validated['position'] ?? null,
+            ]);
+
+            // Update teacher group if provided
+            if (! empty($validated['teacher_group_id'])) {
+                $teacherProfile->groups()->sync([$validated['teacher_group_id']]);
+            } else {
+                $teacherProfile->groups()->detach();
+            }
+        } elseif ($validated['role'] === 'assessor') {
+            $assessorProfile = $user->assessorProfile;
+            if (! $assessorProfile) {
+                $assessorProfile = AssessorProfile::create([
+                    'id' => Str::ulid(),
+                    'user_id' => $user->id,
+                ]);
+            }
+
+            $assessorProfile->update([
+                'meta' => [
+                    'type' => $validated['assessor_type'] ?? 'peer',
+                ],
+            ]);
+        }
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'update_user',
+            'entity_type' => User::class,
+            'entity_id' => $user->id,
+            'description' => "Updated user: {$user->name}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
         ]);
 
         return redirect()->route('admin.users.index')
@@ -219,28 +293,32 @@ class UserController extends Controller
 
     public function toggleStatus(User $user)
     {
-        if ($user->deactivated_at) {
-            $user->update(['deactivated_at' => null]);
-            $action = 'activate_user';
-            $message = 'Pengguna berhasil diaktifkan.';
-        } else {
-            $user->update(['deactivated_at' => now()]);
-            $action = 'deactivate_user';
-            $message = 'Pengguna berhasil dinonaktifkan.';
+        try {
+            if ($user->status === 'inactive') {
+                $user->update(['status' => 'active']);
+                $action = 'activate_user';
+                $message = 'Pengguna berhasil diaktifkan.';
+            } else {
+                $user->update(['status' => 'inactive']);
+                $action = 'deactivate_user';
+                $message = 'Pengguna berhasil dinonaktifkan.';
+            }
+
+            // Log activity
+            ActivityLog::create([
+                'id' => Str::ulid(),
+                'user_id' => auth()->id(),
+                'action' => $action,
+                'entity_type' => User::class,
+                'entity_id' => $user->id,
+                'description' => "{$action} for user: {$user->name}",
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            return back()->with('error', 'Gagal mengubah status pengguna: '.$e->getMessage());
         }
-
-        // Log activity
-        ActivityLog::create([
-            'id' => Str::ulid(),
-            'user_id' => auth()->id(),
-            'action' => $action,
-            'entity_type' => User::class,
-            'entity_id' => $user->id,
-            'description' => "{$action} for user: {$user->name}",
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
-
-        return back()->with('success', $message);
     }
 }

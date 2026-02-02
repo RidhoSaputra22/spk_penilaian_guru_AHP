@@ -15,6 +15,9 @@
 :root {
     --primary-color: #c20303;
     --secondary-color: #059669;
+    --warning-color: #18d906;
+    --danger-color: #dc2626;
+    --success-color: #16a34a;
 }
 
 /* Active menu styling */
