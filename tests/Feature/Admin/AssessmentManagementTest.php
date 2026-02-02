@@ -22,7 +22,7 @@ class AssessmentManagementTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
     }
@@ -53,17 +53,17 @@ class AssessmentManagementTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
 
-        $teacherRole = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $teacherRole = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacherUser = User::factory()->create();
         $teacherUser->roles()->attach($teacherRole);
         $teacher = TeacherProfile::factory()->create(['user_id' => $teacherUser->id]);
 
-        $assessorRole = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $assessorRole = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessorUser = User::factory()->create();
         $assessorUser->roles()->attach($assessorRole);
         $assessor = AssessorProfile::factory()->create(['user_id' => $assessorUser->id]);
 
-        $assignment = KpiFormAssignment::factory()->create(['period_id' => $period->id]);
+        $assignment = KpiFormAssignment::factory()->create(['assessment_period_id' => $period->id]);
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.assessments.assign'), [
@@ -80,7 +80,7 @@ class AssessmentManagementTest extends TestCase
     public function admin_can_filter_assessments_by_period(): void
     {
         $period = AssessmentPeriod::factory()->create();
-        Assessment::factory()->count(3)->create(['period_id' => $period->id]);
+        Assessment::factory()->count(3)->create(['assessment_period_id' => $period->id]);
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.assessments.index', ['period_id' => $period->id]));

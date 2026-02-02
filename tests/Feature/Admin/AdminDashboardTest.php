@@ -19,7 +19,7 @@ class AdminDashboardTest extends TestCase
         parent::setUp();
 
         // Create admin role and user
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
     }
@@ -52,6 +52,8 @@ class AdminDashboardTest extends TestCase
             ->get(route('admin.dashboard'));
 
         $response->assertStatus(200);
-        $response->assertViewHas('stats');
+        // Controller returns these variables instead of 'stats'
+        $response->assertViewHas('totalTeachers');
+        $response->assertViewHas('totalAssessors');
     }
 }

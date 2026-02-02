@@ -27,10 +27,10 @@ class PeriodController extends Controller
 
         // Year filter
         if ($request->filled('year')) {
-            $query->whereYear('start_date', $request->year);
+            $query->whereYear('scoring_open_at', $request->year);
         }
 
-        $periods = $query->latest('start_date')->paginate(10)->withQueryString();
+        $periods = $query->latest('scoring_open_at')->paginate(10)->withQueryString();
 
         // Stats
         $stats = [
@@ -55,12 +55,10 @@ class PeriodController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after:start_date'],
-            'scoring_start' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'scoring_end' => ['nullable', 'date', 'before_or_equal:end_date', 'after:scoring_start'],
-            'criteria_set_id' => ['required', 'exists:criteria_sets,id'],
-            'kpi_form_template_id' => ['nullable', 'exists:kpi_form_templates,id'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+            'semester' => ['nullable', 'string', 'max:20'],
+            'scoring_open_at' => ['nullable', 'date'],
+            'scoring_close_at' => ['nullable', 'date', 'after:scoring_open_at'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:draft,open,closed'],
         ]);
@@ -92,7 +90,7 @@ class PeriodController extends Controller
         $period->load(['criteriaSet.criteriaNodes', 'ahpModel.weights']);
 
         // Get assessment stats
-        $assessmentStats = Assessment::where('period_id', $period->id)
+        $assessmentStats = Assessment::where('assessment_period_id', $period->id)
             ->selectRaw('status, count(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status')
@@ -113,12 +111,10 @@ class PeriodController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'start_date' => ['required', 'date'],
-            'end_date' => ['required', 'date', 'after:start_date'],
-            'scoring_start' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'scoring_end' => ['nullable', 'date', 'before_or_equal:end_date', 'after:scoring_start'],
-            'criteria_set_id' => ['required', 'exists:criteria_sets,id'],
-            'kpi_form_template_id' => ['nullable', 'exists:kpi_form_templates,id'],
+            'academic_year' => ['nullable', 'string', 'max:20'],
+            'semester' => ['nullable', 'string', 'max:20'],
+            'scoring_open_at' => ['nullable', 'date'],
+            'scoring_close_at' => ['nullable', 'date', 'after:scoring_open_at'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:draft,open,closed'],
         ]);

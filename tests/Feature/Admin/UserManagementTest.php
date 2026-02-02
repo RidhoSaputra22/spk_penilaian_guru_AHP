@@ -12,16 +12,18 @@ class UserManagementTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected Role $teacherRole;
+
     protected Role $assessorRole;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
-        $this->teacherRole = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
-        $this->assessorRole = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
+        $this->teacherRole = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
+        $this->assessorRole = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
 
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
@@ -138,7 +140,7 @@ class UserManagementTest extends TestCase
     /** @test */
     public function admin_can_toggle_user_status(): void
     {
-        $user = User::factory()->create(['is_active' => true]);
+        $user = User::factory()->create(['status' => 'active']);
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.users.toggle-status', $user));

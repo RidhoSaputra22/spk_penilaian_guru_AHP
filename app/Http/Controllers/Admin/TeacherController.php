@@ -61,7 +61,7 @@ class TeacherController extends Controller
         // Add assessment stats to each teacher
         if ($activePeriod) {
             $teachers->getCollection()->transform(function($teacher) use ($activePeriod) {
-                $assessment = Assessment::where('teacher_id', $teacher->id)
+                $assessment = Assessment::where('teacher_profile_id', $teacher->id)
                     ->where('period_id', $activePeriod->id)
                     ->first();
 

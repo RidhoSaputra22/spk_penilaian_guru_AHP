@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\AssessmentPeriod;
+use App\Models\CriteriaSet;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,7 +19,7 @@ class PeriodManagementTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
     }
@@ -38,12 +39,13 @@ class PeriodManagementTest extends TestCase
     /** @test */
     public function admin_can_create_period(): void
     {
+        $criteriaSet = CriteriaSet::factory()->create();
+
         $periodData = [
             'name' => 'Semester Ganjil 2025/2026',
-            'academic_year' => '2025/2026',
-            'semester' => 1,
-            'scoring_open_at' => now()->addDay()->format('Y-m-d'),
-            'scoring_close_at' => now()->addMonth()->format('Y-m-d'),
+            'start_date' => now()->format('Y-m-d'),
+            'end_date' => now()->addMonth()->format('Y-m-d'),
+            'criteria_set_id' => $criteriaSet->id,
             'status' => 'draft',
         ];
 
@@ -60,12 +62,14 @@ class PeriodManagementTest extends TestCase
     public function admin_can_update_period(): void
     {
         $period = AssessmentPeriod::factory()->create();
+        $criteriaSet = CriteriaSet::factory()->create();
 
         $response = $this->actingAs($this->admin)
             ->put(route('admin.periods.update', $period), [
                 'name' => 'Updated Period Name',
-                'academic_year' => $period->academic_year,
-                'semester' => $period->semester,
+                'start_date' => now()->format('Y-m-d'),
+                'end_date' => now()->addMonth()->format('Y-m-d'),
+                'criteria_set_id' => $criteriaSet->id,
                 'status' => $period->status,
             ]);
 
@@ -83,13 +87,13 @@ class PeriodManagementTest extends TestCase
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.periods.update-status', $period), [
-                'status' => 'active',
+                'status' => 'open',
             ]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('assessment_periods', [
             'id' => $period->id,
-            'status' => 'active',
+            'status' => 'open',
         ]);
     }
 
@@ -111,6 +115,6 @@ class PeriodManagementTest extends TestCase
         $response = $this->actingAs($this->admin)
             ->post(route('admin.periods.store'), []);
 
-        $response->assertSessionHasErrors(['name', 'academic_year', 'semester']);
+        $response->assertSessionHasErrors(['name', 'start_date', 'end_date', 'criteria_set_id', 'status']);
     }
 }

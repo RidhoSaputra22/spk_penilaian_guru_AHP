@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\KpiFormTemplate;
-use App\Models\KpiFormVersion;
-use App\Models\KpiFormSection;
+use App\Models\ActivityLog;
+use App\Models\CriteriaSet;
 use App\Models\KpiFormItem;
 use App\Models\KpiFormItemOption;
-use App\Models\CriteriaSet;
-use App\Models\CriteriaNode;
-use App\Models\ActivityLog;
+use App\Models\KpiFormSection;
+use App\Models\KpiFormTemplate;
+use App\Models\KpiFormVersion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -20,12 +19,12 @@ class KpiFormController extends Controller
     {
         $institution = auth()->user()->institution;
 
-        $templates = KpiFormTemplate::with(['versions' => function($q) {
+        $templates = KpiFormTemplate::with(['versions' => function ($q) {
             $q->latest('version_number');
         }])
-        ->where('institution_id', $institution?->id)
-        ->latest()
-        ->get();
+            ->where('institution_id', $institution?->id)
+            ->latest()
+            ->paginate(10);
 
         return view('admin.kpi-forms.index', compact('templates'));
     }
@@ -76,17 +75,17 @@ class KpiFormController extends Controller
 
     public function builder(KpiFormTemplate $template)
     {
-        $template->load(['versions.sections.items.options', 'versions' => function($q) {
+        $template->load(['versions.sections.items.options', 'versions' => function ($q) {
             $q->latest('version_number');
         }]);
 
         $latestVersion = $template->versions->first();
 
-        $criteriaSets = CriteriaSet::with(['criteriaNodes' => function($q) {
-            $q->orderBy('level')->orderBy('sort_order');
+        $criteriaSets = CriteriaSet::with(['criteriaNodes' => function ($q) {
+            $q->orderBy('sort_order');
         }])
-        ->where('institution_id', auth()->user()->institution_id)
-        ->get();
+            ->where('institution_id', auth()->user()->institution_id)
+            ->get();
 
         return view('admin.kpi-forms.builder', compact('template', 'latestVersion', 'criteriaSets'));
     }
@@ -128,7 +127,7 @@ class KpiFormController extends Controller
                 'sort_order' => $sectionData['sort_order'],
             ]);
 
-            if (!empty($sectionData['items'])) {
+            if (! empty($sectionData['items'])) {
                 foreach ($sectionData['items'] as $itemData) {
                     $item = KpiFormItem::create([
                         'id' => Str::ulid(),
@@ -140,7 +139,7 @@ class KpiFormController extends Controller
                         'sort_order' => $itemData['sort_order'],
                     ]);
 
-                    if (!empty($itemData['options'])) {
+                    if (! empty($itemData['options'])) {
                         foreach ($itemData['options'] as $index => $optionData) {
                             KpiFormItemOption::create([
                                 'id' => Str::ulid(),
@@ -183,7 +182,7 @@ class KpiFormController extends Controller
     {
         $latestVersion = $template->versions()->latest('version_number')->first();
 
-        if (!$latestVersion->sections()->exists()) {
+        if (! $latestVersion->sections()->exists()) {
             return back()->with('error', 'Form harus memiliki minimal 1 section untuk dipublikasi.');
         }
 

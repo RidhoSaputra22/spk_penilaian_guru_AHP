@@ -23,7 +23,7 @@ class AssessorResultTest extends TestCase
     {
         parent::setUp();
 
-        $role = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $this->assessor = User::factory()->create();
         $this->assessor->roles()->attach($role);
         $this->assessorProfile = AssessorProfile::factory()->create(['user_id' => $this->assessor->id]);
@@ -44,8 +44,8 @@ class AssessorResultTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'completed']);
         $assessment = Assessment::factory()->create([
-            'assessor_id' => $this->assessorProfile->id,
-            'period_id' => $period->id,
+            'assessor_profile_id' => $this->assessorProfile->id,
+            'assessment_period_id' => $period->id,
             'status' => 'submitted',
         ]);
 
@@ -61,7 +61,7 @@ class AssessorResultTest extends TestCase
     {
         $otherAssessor = AssessorProfile::factory()->create();
         $otherAssessment = Assessment::factory()->create([
-            'assessor_id' => $otherAssessor->id,
+            'assessor_profile_id' => $otherAssessor->id,
             'status' => 'submitted',
         ]);
 
@@ -78,8 +78,8 @@ class AssessorResultTest extends TestCase
 
         // Create multiple submitted assessments
         Assessment::factory()->count(5)->create([
-            'assessor_id' => $this->assessorProfile->id,
-            'period_id' => $period->id,
+            'assessor_profile_id' => $this->assessorProfile->id,
+            'assessment_period_id' => $period->id,
             'status' => 'submitted',
         ]);
 

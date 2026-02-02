@@ -14,7 +14,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function admin_can_access_admin_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $role = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $admin = User::factory()->create();
         $admin->roles()->attach($role);
 
@@ -28,7 +28,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function admin_cannot_access_assessor_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $role = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $admin = User::factory()->create();
         $admin->roles()->attach($role);
 
@@ -39,7 +39,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function admin_cannot_access_teacher_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $role = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $admin = User::factory()->create();
         $admin->roles()->attach($role);
 
@@ -50,7 +50,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function assessor_can_access_assessor_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessor = User::factory()->create();
         $assessor->roles()->attach($role);
 
@@ -61,7 +61,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function assessor_cannot_access_admin_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessor = User::factory()->create();
         $assessor->roles()->attach($role);
 
@@ -72,7 +72,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function assessor_cannot_access_teacher_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessor = User::factory()->create();
         $assessor->roles()->attach($role);
 
@@ -83,7 +83,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function teacher_can_access_teacher_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacher = User::factory()->create();
         $teacher->roles()->attach($role);
 
@@ -94,7 +94,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function teacher_cannot_access_admin_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacher = User::factory()->create();
         $teacher->roles()->attach($role);
 
@@ -105,7 +105,7 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function teacher_cannot_access_assessor_routes(): void
     {
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacher = User::factory()->create();
         $teacher->roles()->attach($role);
 
@@ -129,8 +129,8 @@ class RoleBasedAccessTest extends TestCase
     /** @test */
     public function user_with_multiple_roles_can_access_multiple_panels(): void
     {
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
-        $assessorRole = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
+        $assessorRole = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
 
         $user = User::factory()->create();
         $user->roles()->attach([$adminRole->id, $assessorRole->id]);

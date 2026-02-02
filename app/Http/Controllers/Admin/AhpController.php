@@ -19,9 +19,9 @@ class AhpController extends Controller
         $institution = auth()->user()->institution;
 
         // Get periods with AHP models
-        $periods = AssessmentPeriod::with(['ahpModel', 'criteriaSet'])
+        $periods = AssessmentPeriod::with(['ahpModel'])
             ->where('institution_id', $institution?->id)
-            ->latest('start_date')
+            ->latest('scoring_open_at')
             ->get();
 
         // Get active period or selected period
@@ -40,11 +40,12 @@ class AhpController extends Controller
         if ($selectedPeriod) {
             $ahpModel = $selectedPeriod->ahpModel;
 
-            // Get root level criteria (level 0)
-            $criteria = CriteriaNode::where('criteria_set_id', $selectedPeriod->criteria_set_id)
-                ->where('level', 0)
+            // Get root level criteria (no parent)
+            $criteriaSetId = $ahpModel?->criteria_set_id;
+            $criteria = $criteriaSetId ? CriteriaNode::where('criteria_set_id', $criteriaSetId)
+                ->whereNull('parent_id')
                 ->orderBy('sort_order')
-                ->get();
+                ->get() : collect();
 
             if ($ahpModel) {
                 $comparisons = AhpComparison::where('ahp_model_id', $ahpModel->id)->get();
@@ -66,6 +67,7 @@ class AhpController extends Controller
     {
         $validated = $request->validate([
             'period_id' => ['required', 'exists:assessment_periods,id'],
+            'criteria_set_id' => ['required', 'exists:criteria_sets,id'],
         ]);
 
         $period = AssessmentPeriod::findOrFail($validated['period_id']);
@@ -78,7 +80,7 @@ class AhpController extends Controller
         $ahpModel = AhpModel::create([
             'id' => Str::ulid(),
             'assessment_period_id' => $period->id,
-            'criteria_set_id' => $period->criteria_set_id,
+            'criteria_set_id' => $validated['criteria_set_id'],
             'status' => 'draft',
         ]);
 

@@ -23,7 +23,7 @@ class ResultController extends Controller
         }
 
         $query = TeacherPeriodResult::with(['period'])
-            ->where('teacher_id', $teacherProfile->id)
+            ->where('teacher_profile_id', $teacherProfile->id)
             ->orderBy('created_at', 'desc');
 
         // Filter by period
@@ -35,7 +35,7 @@ class ResultController extends Controller
 
         // Get all periods for filter
         $periods = AssessmentPeriod::whereHas('teacherResults', function ($q) use ($teacherProfile) {
-            $q->where('teacher_id', $teacherProfile->id);
+            $q->where('teacher_profile_id', $teacherProfile->id);
         })->orderBy('created_at', 'desc')->get();
 
         return view('teacher.results.index', compact('results', 'periods'));
@@ -47,7 +47,7 @@ class ResultController extends Controller
         $teacherProfile = $user->teacherProfile;
 
         // Verify ownership
-        if ($result->teacher_id !== $teacherProfile?->id) {
+        if ($result->teacher_profile_id !== $teacherProfile?->id) {
             abort(403, 'Anda tidak memiliki akses ke hasil ini.');
         }
 
@@ -58,7 +58,7 @@ class ResultController extends Controller
             'assessor.user',
             'itemValues.formItem.section',
         ])
-            ->where('teacher_id', $teacherProfile->id)
+            ->where('teacher_profile_id', $teacherProfile->id)
             ->where('period_id', $result->period_id)
             ->whereIn('status', ['submitted', 'finalized'])
             ->get();
@@ -75,7 +75,7 @@ class ResultController extends Controller
         $teacherProfile = $user->teacherProfile;
 
         // Verify ownership
-        if ($result->teacher_id !== $teacherProfile?->id) {
+        if ($result->teacher_profile_id !== $teacherProfile?->id) {
             abort(403, 'Anda tidak memiliki akses ke hasil ini.');
         }
 
@@ -86,7 +86,7 @@ class ResultController extends Controller
             'assessor.user',
             'itemValues.formItem.section',
         ])
-            ->where('teacher_id', $teacherProfile->id)
+            ->where('teacher_profile_id', $teacherProfile->id)
             ->where('period_id', $result->period_id)
             ->whereIn('status', ['submitted', 'finalized'])
             ->get();

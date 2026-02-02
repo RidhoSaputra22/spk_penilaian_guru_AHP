@@ -22,7 +22,7 @@ class TeacherDashboardTest extends TestCase
     {
         parent::setUp();
 
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $this->teacher = User::factory()->create();
         $this->teacher->roles()->attach($role);
         $this->teacherProfile = TeacherProfile::factory()->create(['user_id' => $this->teacher->id]);
@@ -43,13 +43,13 @@ class TeacherDashboardTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
         Assessment::factory()->count(2)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period->id,
             'status' => 'pending',
         ]);
         Assessment::factory()->count(3)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period->id,
             'status' => 'submitted',
         ]);
 
@@ -77,8 +77,7 @@ class TeacherDashboardTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'completed']);
         TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
         ]);
 
         $response = $this->actingAs($this->teacher)
@@ -99,7 +98,7 @@ class TeacherDashboardTest extends TestCase
     /** @test */
     public function non_teacher_cannot_access_dashboard(): void
     {
-        $assessorRole = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $assessorRole = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessor = User::factory()->create();
         $assessor->roles()->attach($assessorRole);
 

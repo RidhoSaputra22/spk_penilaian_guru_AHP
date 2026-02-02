@@ -23,7 +23,7 @@ class AhpWeightingTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
 
@@ -49,13 +49,12 @@ class AhpWeightingTest extends TestCase
             ->post(route('admin.ahp.create-model'), [
                 'period_id' => $period->id,
                 'criteria_set_id' => $this->criteriaSet->id,
-                'name' => 'AHP Model Semester 1',
             ]);
 
         $response->assertRedirect();
         $this->assertDatabaseHas('ahp_models', [
-            'period_id' => $period->id,
-            'name' => 'AHP Model Semester 1',
+            'assessment_period_id' => $period->id,
+            'criteria_set_id' => $this->criteriaSet->id,
         ]);
     }
 
@@ -69,11 +68,9 @@ class AhpWeightingTest extends TestCase
         // Create criteria nodes
         $node1 = CriteriaNode::factory()->create([
             'criteria_set_id' => $this->criteriaSet->id,
-            'level' => 1,
         ]);
         $node2 = CriteriaNode::factory()->create([
             'criteria_set_id' => $this->criteriaSet->id,
-            'level' => 1,
         ]);
 
         $response = $this->actingAs($this->admin)

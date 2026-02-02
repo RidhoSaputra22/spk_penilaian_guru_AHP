@@ -22,7 +22,7 @@ class StatusController extends Controller
         }
 
         $query = Assessment::with(['period', 'assessor.user', 'assignment.formVersion.template'])
-            ->where('teacher_id', $teacherProfile->id)
+            ->where('teacher_profile_id', $teacherProfile->id)
             ->orderBy('created_at', 'desc');
 
         // Filter by period
@@ -39,7 +39,7 @@ class StatusController extends Controller
 
         // Get all periods for filter
         $periods = AssessmentPeriod::whereHas('assessments', function ($q) use ($teacherProfile) {
-            $q->where('teacher_id', $teacherProfile->id);
+            $q->where('teacher_profile_id', $teacherProfile->id);
         })->orderBy('created_at', 'desc')->get();
 
         return view('teacher.status.index', compact('assessments', 'periods'));
@@ -51,7 +51,7 @@ class StatusController extends Controller
         $teacherProfile = $user->teacherProfile;
 
         // Ensure teacher can only see their own assessments
-        if ($assessment->teacher_id !== $teacherProfile?->id) {
+        if ($assessment->teacher_profile_id !== $teacherProfile?->id) {
             abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
         }
 

@@ -66,7 +66,7 @@ class AuthenticationTest extends TestCase
     /** @test */
     public function admin_is_redirected_to_admin_dashboard(): void
     {
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $admin = User::factory()->create([
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
@@ -84,7 +84,7 @@ class AuthenticationTest extends TestCase
     /** @test */
     public function assessor_is_redirected_to_assessor_dashboard(): void
     {
-        $assessorRole = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $assessorRole = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessor = User::factory()->create([
             'email' => 'assessor@example.com',
             'password' => Hash::make('password'),
@@ -102,7 +102,7 @@ class AuthenticationTest extends TestCase
     /** @test */
     public function teacher_is_redirected_to_teacher_dashboard(): void
     {
-        $teacherRole = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $teacherRole = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacher = User::factory()->create([
             'email' => 'teacher@example.com',
             'password' => Hash::make('password'),
@@ -123,7 +123,7 @@ class AuthenticationTest extends TestCase
         $user = User::factory()->create([
             'email' => 'inactive@example.com',
             'password' => Hash::make('password'),
-            'is_active' => false,
+            'status' => 'inactive',
         ]);
 
         $response = $this->post(route('login'), [

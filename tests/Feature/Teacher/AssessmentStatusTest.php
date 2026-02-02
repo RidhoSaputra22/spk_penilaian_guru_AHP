@@ -23,7 +23,7 @@ class AssessmentStatusTest extends TestCase
     {
         parent::setUp();
 
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $this->teacher = User::factory()->create();
         $this->teacher->roles()->attach($role);
         $this->teacherProfile = TeacherProfile::factory()->create(['user_id' => $this->teacher->id]);
@@ -44,8 +44,8 @@ class AssessmentStatusTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
         Assessment::factory()->count(3)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period->id,
         ]);
 
         $response = $this->actingAs($this->teacher)
@@ -59,15 +59,15 @@ class AssessmentStatusTest extends TestCase
     public function teacher_can_view_assessment_details(): void
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
-        $assessorRole = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $assessorRole = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $assessorUser = User::factory()->create();
         $assessorUser->roles()->attach($assessorRole);
         $assessor = AssessorProfile::factory()->create(['user_id' => $assessorUser->id]);
 
         $assessment = Assessment::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'assessor_id' => $assessor->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessor_profile_id' => $assessor->id,
+            'assessment_period_id' => $period->id,
             'status' => 'pending',
         ]);
 
@@ -82,17 +82,18 @@ class AssessmentStatusTest extends TestCase
     public function teacher_can_see_status_timeline(): void
     {
         $assessment = Assessment::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'status' => 'pending',
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'status' => 'draft',
         ]);
 
         AssessmentStatusLog::factory()->create([
             'assessment_id' => $assessment->id,
-            'status' => 'created',
+            'to_status' => 'draft',
         ]);
         AssessmentStatusLog::factory()->create([
             'assessment_id' => $assessment->id,
-            'status' => 'pending',
+            'from_status' => 'draft',
+            'to_status' => 'finalized',
         ]);
 
         $response = $this->actingAs($this->teacher)
@@ -107,7 +108,7 @@ class AssessmentStatusTest extends TestCase
     {
         $otherTeacher = TeacherProfile::factory()->create();
         $otherAssessment = Assessment::factory()->create([
-            'teacher_id' => $otherTeacher->id,
+            'teacher_profile_id' => $otherTeacher->id,
             'status' => 'pending',
         ]);
 
@@ -124,12 +125,12 @@ class AssessmentStatusTest extends TestCase
         $period2 = AssessmentPeriod::factory()->create(['name' => 'Period 2']);
 
         Assessment::factory()->count(2)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period1->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period1->id,
         ]);
         Assessment::factory()->count(3)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period2->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period2->id,
         ]);
 
         $response = $this->actingAs($this->teacher)
@@ -143,13 +144,13 @@ class AssessmentStatusTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
         Assessment::factory()->count(2)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period->id,
             'status' => 'pending',
         ]);
         Assessment::factory()->count(3)->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
+            'assessment_period_id' => $period->id,
             'status' => 'submitted',
         ]);
 

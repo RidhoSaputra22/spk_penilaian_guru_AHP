@@ -21,7 +21,7 @@ class TeacherResultTest extends TestCase
     {
         parent::setUp();
 
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $this->teacher = User::factory()->create();
         $this->teacher->roles()->attach($role);
         $this->teacherProfile = TeacherProfile::factory()->create(['user_id' => $this->teacher->id]);
@@ -42,8 +42,7 @@ class TeacherResultTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'completed']);
         TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
             'final_score' => 85.5,
             'rank' => 3,
         ]);
@@ -60,8 +59,7 @@ class TeacherResultTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'completed']);
         $result = TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
             'final_score' => 88.0,
             'rank' => 2,
         ]);
@@ -78,7 +76,7 @@ class TeacherResultTest extends TestCase
     {
         $otherTeacher = TeacherProfile::factory()->create();
         $result = TeacherPeriodResult::factory()->create([
-            'teacher_id' => $otherTeacher->id,
+            'teacher_profile_id' => $otherTeacher->id,
         ]);
 
         $response = $this->actingAs($this->teacher)
@@ -92,8 +90,7 @@ class TeacherResultTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'completed']);
         $result = TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
         ]);
 
         $response = $this->actingAs($this->teacher)
@@ -108,8 +105,7 @@ class TeacherResultTest extends TestCase
     {
         $period = AssessmentPeriod::factory()->create(['status' => 'completed']);
         $result = TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
             'final_score' => 90.0,
             'rank' => 1,
         ]);
@@ -128,12 +124,10 @@ class TeacherResultTest extends TestCase
         $period2 = AssessmentPeriod::factory()->create(['name' => 'Semester 2']);
 
         TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period1->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
         ]);
         TeacherPeriodResult::factory()->create([
-            'teacher_id' => $this->teacherProfile->id,
-            'period_id' => $period2->id,
+            'teacher_profile_id' => $this->teacherProfile->id,
         ]);
 
         $response = $this->actingAs($this->teacher)

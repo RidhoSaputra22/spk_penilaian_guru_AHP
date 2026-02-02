@@ -21,7 +21,7 @@ class ResultController extends Controller
         $institution = auth()->user()->institution;
 
         $periods = AssessmentPeriod::where('institution_id', $institution?->id)
-            ->orderByDesc('start_date')
+            ->orderByDesc('scoring_open_at')
             ->get();
 
         $selectedPeriod = null;
@@ -85,11 +85,12 @@ class ResultController extends Controller
                 });
             }
 
-            // Get criteria for this period
-            $criteria = CriteriaNode::where('criteria_set_id', $selectedPeriod->criteria_set_id)
-                ->where('level', 0)
+            // Get criteria for this period (via AHP model)
+            $criteriaSetId = $selectedPeriod->ahpModel?->criteria_set_id;
+            $criteria = $criteriaSetId ? CriteriaNode::where('criteria_set_id', $criteriaSetId)
+                ->whereNull('parent_id')
                 ->orderBy('sort_order')
-                ->get();
+                ->get() : collect();
 
             // Calculate criteria averages from teacher criteria scores
             if ($periodResult) {
@@ -135,7 +136,7 @@ class ResultController extends Controller
 
         // Get root criteria with their scores
         $rootCriteria = CriteriaNode::where('criteria_set_id', $period->criteria_set_id)
-            ->where('level', 0)
+            ->whereNull('parent_id')
             ->orderBy('sort_order')
             ->get()
             ->map(function($criterion) use ($result, $weights) {

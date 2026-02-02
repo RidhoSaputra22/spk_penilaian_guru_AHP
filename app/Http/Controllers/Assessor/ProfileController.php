@@ -23,11 +23,13 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email,' . $user->id],
             'title' => ['nullable', 'string', 'max:255'],
         ]);
 
         $user->update([
             'name' => $validated['name'],
+            'email' => $validated['email'],
         ]);
 
         if ($user->assessorProfile && isset($validated['title'])) {

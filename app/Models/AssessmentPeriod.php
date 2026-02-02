@@ -55,6 +55,13 @@ class AssessmentPeriod extends Model
 
     public function teacherResults()
     {
-        return $this->hasMany(TeacherPeriodResult::class, 'period_id');
+        return $this->hasManyThrough(
+            TeacherPeriodResult::class,
+            PeriodResult::class,
+            'assessment_period_id', // Foreign key on period_results
+            'period_result_id',     // Foreign key on teacher_period_results
+            'id',                   // Local key on assessment_periods
+            'id'                    // Local key on period_results
+        );
     }
 }

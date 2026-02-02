@@ -68,6 +68,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // Criteria Management
     Route::get('criteria', [CriteriaController::class, 'index'])->name('criteria.index');
+    Route::post('criteria', [CriteriaController::class, 'storeSet'])->name('criteria.store');
+    Route::get('criteria/sets/create', function() {
+        return view('admin.criteria.create');
+    })->name('criteria.sets.create');
     Route::post('criteria/sets', [CriteriaController::class, 'storeSet'])->name('criteria.store-set');
     Route::put('criteria/sets/{criteriaSet}', [CriteriaController::class, 'updateSet'])->name('criteria.update-set');
     Route::delete('criteria/sets/{criteriaSet}', [CriteriaController::class, 'destroySet'])->name('criteria.destroy-set');
@@ -108,11 +112,26 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // Results & Ranking
     Route::get('results', [ResultController::class, 'index'])->name('results.index');
     Route::get('results/export', [ResultController::class, 'export'])->name('results.export');
+    Route::get('results/export-pdf', [ResultController::class, 'export'])->name('results.export-pdf');
+    Route::get('results/export-excel', [ResultController::class, 'export'])->name('results.export-excel');
     Route::post('results/calculate', [ResultController::class, 'calculate'])->name('results.calculate');
     Route::get('results/{result}', [ResultController::class, 'show'])->name('results.show');
 
     // Activity Logs
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+
+    // Placeholder routes for views
+    Route::get('scoring-scales', function() {
+        return view('admin.scoring-scales.index');
+    })->name('scoring-scales.index');
+
+    Route::get('kpi-assignments', function() {
+        return view('admin.kpi-assignments.index');
+    })->name('kpi-assignments.index');
+
+    Route::get('reports', function() {
+        return view('admin.reports.index');
+    })->name('reports.index');
 
     // Profile (placeholder)
     Route::get('profile', function() {

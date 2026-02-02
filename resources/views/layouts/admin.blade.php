@@ -373,14 +373,14 @@
                 @endif
 
                 <!-- Page Header -->
-                @if(isset($header))
+                @hasSection('header')
                 <div class="mb-6">
-                    {{ $header }}
+                    @yield('header')
                 </div>
                 @endif
 
-                <!-- Main Slot -->
-                {{ $slot }}
+                <!-- Main Content -->
+                @yield('content')
             </main>
 
             <!-- Footer -->

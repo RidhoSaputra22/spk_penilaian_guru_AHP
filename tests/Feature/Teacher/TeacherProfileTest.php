@@ -20,7 +20,7 @@ class TeacherProfileTest extends TestCase
     {
         parent::setUp();
 
-        $role = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $role = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $this->teacher = User::factory()->create();
         $this->teacher->roles()->attach($role);
         $this->teacherProfile = TeacherProfile::factory()->create(['user_id' => $this->teacher->id]);
@@ -61,7 +61,7 @@ class TeacherProfileTest extends TestCase
         $this->teacher->update(['password' => Hash::make('oldpassword')]);
 
         $response = $this->actingAs($this->teacher)
-            ->put(route('teacher.profile.password'), [
+            ->put(route('teacher.profile.update-password'), [
                 'current_password' => 'oldpassword',
                 'password' => 'newpassword123',
                 'password_confirmation' => 'newpassword123',
@@ -80,7 +80,7 @@ class TeacherProfileTest extends TestCase
         $this->teacher->update(['password' => Hash::make('oldpassword')]);
 
         $response = $this->actingAs($this->teacher)
-            ->put(route('teacher.profile.password'), [
+            ->put(route('teacher.profile.update-password'), [
                 'current_password' => 'wrongpassword',
                 'password' => 'newpassword123',
                 'password_confirmation' => 'newpassword123',
@@ -95,7 +95,7 @@ class TeacherProfileTest extends TestCase
         $this->teacher->update(['password' => Hash::make('oldpassword')]);
 
         $response = $this->actingAs($this->teacher)
-            ->put(route('teacher.profile.password'), [
+            ->put(route('teacher.profile.update-password'), [
                 'current_password' => 'oldpassword',
                 'password' => 'newpassword123',
                 'password_confirmation' => 'differentpassword',

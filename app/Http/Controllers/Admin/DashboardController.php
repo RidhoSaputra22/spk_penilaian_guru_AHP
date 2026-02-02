@@ -39,7 +39,7 @@ class DashboardController extends Controller
         $assessmentsByStatus = [];
 
         if ($activePeriod) {
-            $assessmentsByStatus = Assessment::where('period_id', $activePeriod->id)
+            $assessmentsByStatus = Assessment::where('assessment_period_id', $activePeriod->id)
                 ->selectRaw('status, count(*) as count')
                 ->groupBy('status')
                 ->pluck('count', 'status')
@@ -66,7 +66,9 @@ class DashboardController extends Controller
         $topTeachers = [];
         if ($activePeriod) {
             $topTeachers = TeacherPeriodResult::with(['teacher.user'])
-                ->where('period_id', $activePeriod->id)
+                ->whereHas('periodResult', function ($q) use ($activePeriod) {
+                    $q->where('assessment_period_id', $activePeriod->id);
+                })
                 ->orderByDesc('final_score')
                 ->take(5)
                 ->get();

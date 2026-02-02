@@ -19,7 +19,7 @@ class KpiFormTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
     }
@@ -111,7 +111,11 @@ class KpiFormTest extends TestCase
     /** @test */
     public function admin_can_publish_kpi_form(): void
     {
-        $template = KpiFormTemplate::factory()->create(['status' => 'draft']);
+        $template = KpiFormTemplate::factory()->create();
+        KpiFormVersion::factory()->create([
+            'template_id' => $template->id,
+            'status' => 'draft',
+        ]);
 
         $response = $this->actingAs($this->admin)
             ->post(route('admin.kpi-forms.publish', $template));
@@ -122,10 +126,11 @@ class KpiFormTest extends TestCase
     /** @test */
     public function admin_can_create_new_version(): void
     {
-        $template = KpiFormTemplate::factory()->create(['status' => 'published']);
+        $template = KpiFormTemplate::factory()->create();
         KpiFormVersion::factory()->create([
             'template_id' => $template->id,
-            'version_number' => 1,
+            'version' => 1,
+            'status' => 'published',
         ]);
 
         $response = $this->actingAs($this->admin)

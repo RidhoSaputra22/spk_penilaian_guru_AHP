@@ -20,7 +20,7 @@ class ResultManagementTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
     }
@@ -63,7 +63,7 @@ class ResultManagementTest extends TestCase
     public function admin_can_export_results(): void
     {
         $period = AssessmentPeriod::factory()->create();
-        PeriodResult::factory()->create(['period_id' => $period->id]);
+        PeriodResult::factory()->create(['assessment_period_id' => $period->id]);
 
         $response = $this->actingAs($this->admin)
             ->get(route('admin.results.export', ['period_id' => $period->id]));

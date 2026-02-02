@@ -19,7 +19,7 @@ class CriteriaManagementTest extends TestCase
     {
         parent::setUp();
 
-        $adminRole = Role::factory()->create(['name' => 'admin', 'slug' => 'admin']);
+        $adminRole = Role::factory()->create(['key' => 'admin', 'name' => 'Admin']);
         $this->admin = User::factory()->create();
         $this->admin->roles()->attach($adminRole);
     }
@@ -76,7 +76,7 @@ class CriteriaManagementTest extends TestCase
             ->delete(route('admin.criteria.destroy-set', $criteriaSet));
 
         $response->assertRedirect();
-        $this->assertSoftDeleted('criteria_sets', ['id' => $criteriaSet->id]);
+        $this->assertDatabaseMissing('criteria_sets', ['id' => $criteriaSet->id]);
     }
 
     /** @test */
@@ -89,7 +89,6 @@ class CriteriaManagementTest extends TestCase
                 'criteria_set_id' => $criteriaSet->id,
                 'name' => 'Pedagogik',
                 'code' => 'K1',
-                'level' => 1,
                 'description' => 'Kriteria Pedagogik',
             ]);
 
@@ -106,7 +105,6 @@ class CriteriaManagementTest extends TestCase
         $criteriaSet = CriteriaSet::factory()->create();
         $parentNode = CriteriaNode::factory()->create([
             'criteria_set_id' => $criteriaSet->id,
-            'level' => 1,
         ]);
 
         $response = $this->actingAs($this->admin)
@@ -115,7 +113,6 @@ class CriteriaManagementTest extends TestCase
                 'parent_id' => $parentNode->id,
                 'name' => 'Perencanaan Pembelajaran',
                 'code' => 'K1.1',
-                'level' => 2,
             ]);
 
         $response->assertRedirect();
@@ -152,6 +149,6 @@ class CriteriaManagementTest extends TestCase
             ->delete(route('admin.criteria.destroy-node', $node));
 
         $response->assertRedirect();
-        $this->assertSoftDeleted('criteria_nodes', ['id' => $node->id]);
+        $this->assertDatabaseMissing('criteria_nodes', ['id' => $node->id]);
     }
 }

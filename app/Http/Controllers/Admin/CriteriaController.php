@@ -89,11 +89,6 @@ class CriteriaController extends Controller
 
     public function destroySet(CriteriaSet $criteriaSet)
     {
-        // Check if used in periods
-        if ($criteriaSet->assessmentPeriods()->exists()) {
-            return back()->with('error', 'Set kriteria sedang digunakan dalam periode penilaian.');
-        }
-
         $setName = $criteriaSet->name;
         $criteriaSet->delete();
 
@@ -124,22 +119,22 @@ class CriteriaController extends Controller
             'scoring_scale_id' => ['nullable', 'exists:scoring_scales,id'],
         ]);
 
-        // Determine level based on parent
-        $level = 0;
-        if ($validated['parent_id']) {
-            $parent = CriteriaNode::find($validated['parent_id']);
-            $level = $parent->level + 1;
-        }
+        // Get parent_id (may be null)
+        $parentId = $validated['parent_id'] ?? null;
 
         // Get max sort order
         $maxSort = CriteriaNode::where('criteria_set_id', $validated['criteria_set_id'])
-            ->where('parent_id', $validated['parent_id'])
+            ->where('parent_id', $parentId)
             ->max('sort_order') ?? 0;
 
         $node = CriteriaNode::create([
             'id' => Str::ulid(),
-            ...$validated,
-            'level' => $level,
+            'criteria_set_id' => $validated['criteria_set_id'],
+            'parent_id' => $parentId,
+            'code' => $validated['code'],
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
+            'scoring_scale_id' => $validated['scoring_scale_id'] ?? null,
             'sort_order' => $maxSort + 1,
         ]);
 

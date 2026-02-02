@@ -29,6 +29,21 @@ class ActivityLog extends Model
         'created_at' => 'datetime',
     ];
 
+    protected static function booted()
+    {
+        static::creating(function ($log) {
+            // Auto-fill institution_id from authenticated user if not set
+            if (!$log->institution_id && auth()->check()) {
+                $log->institution_id = auth()->user()->institution_id;
+            }
+
+            // Set created_at if not set
+            if (!$log->created_at) {
+                $log->created_at = now();
+            }
+        });
+    }
+
     public function institution()
     {
         return $this->belongsTo(Institution::class);

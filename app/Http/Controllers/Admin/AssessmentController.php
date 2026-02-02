@@ -19,15 +19,15 @@ class AssessmentController extends Controller
         $institution = auth()->user()->institution;
 
         $periods = AssessmentPeriod::where('institution_id', $institution?->id)
-            ->orderByDesc('start_date')
+            ->orderByDesc('scoring_open_at')
             ->get();
 
         $selectedPeriod = null;
         $assessments = collect();
         $stats = [];
 
-        if ($request->filled('period')) {
-            $selectedPeriod = $periods->firstWhere('id', $request->period);
+        if ($request->filled('period_id')) {
+            $selectedPeriod = $periods->firstWhere('id', $request->period_id);
         } else {
             $selectedPeriod = $periods->firstWhere('status', 'open') ?? $periods->first();
         }

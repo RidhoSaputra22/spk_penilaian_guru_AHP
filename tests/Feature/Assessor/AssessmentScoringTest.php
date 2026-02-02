@@ -31,13 +31,13 @@ class AssessmentScoringTest extends TestCase
         parent::setUp();
 
         // Create assessor
-        $role = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $this->assessor = User::factory()->create();
         $this->assessor->roles()->attach($role);
         $this->assessorProfile = AssessorProfile::factory()->create(['user_id' => $this->assessor->id]);
 
         // Create teacher
-        $teacherRole = Role::factory()->create(['name' => 'teacher', 'slug' => 'teacher']);
+        $teacherRole = Role::factory()->create(['key' => 'teacher', 'name' => 'Teacher']);
         $teacherUser = User::factory()->create();
         $teacherUser->roles()->attach($teacherRole);
         $teacher = TeacherProfile::factory()->create(['user_id' => $teacherUser->id]);
@@ -49,16 +49,15 @@ class AssessmentScoringTest extends TestCase
         // Create period and assignment
         $period = AssessmentPeriod::factory()->create(['status' => 'active']);
         KpiFormAssignment::factory()->create([
-            'period_id' => $period->id,
-            'version_id' => $this->formVersion->id,
+            'assessment_period_id' => $period->id,
+            'form_version_id' => $this->formVersion->id,
         ]);
 
         // Create assessment
         $this->assessment = Assessment::factory()->create([
-            'assessor_id' => $this->assessorProfile->id,
-            'teacher_id' => $teacher->id,
-            'period_id' => $period->id,
-            'version_id' => $this->formVersion->id,
+            'assessor_profile_id' => $this->assessorProfile->id,
+            'teacher_profile_id' => $teacher->id,
+            'assessment_period_id' => $period->id,
             'status' => 'pending',
         ]);
     }
@@ -77,7 +76,10 @@ class AssessmentScoringTest extends TestCase
     public function assessor_can_view_scoring_form(): void
     {
         $response = $this->actingAs($this->assessor)
-            ->get(route('assessor.assessments.score', $this->assessment));
+            ->get(route('assessor.assessments.score', [
+                'period' => $this->assessment->period,
+                'teacher' => $this->assessment->teacher
+            ]));
 
         $response->assertStatus(200);
         $response->assertViewIs('assessor.assessments.score');
@@ -86,7 +88,7 @@ class AssessmentScoringTest extends TestCase
     /** @test */
     public function assessor_can_save_draft_scores(): void
     {
-        $section = KpiFormSection::factory()->create(['version_id' => $this->formVersion->id]);
+        $section = KpiFormSection::factory()->create(['form_version_id' => $this->formVersion->id]);
         $item = KpiFormItem::factory()->create(['section_id' => $section->id]);
 
         $response = $this->actingAs($this->assessor)
@@ -104,8 +106,8 @@ class AssessmentScoringTest extends TestCase
 
         $this->assertDatabaseHas('assessment_item_values', [
             'assessment_id' => $this->assessment->id,
-            'item_id' => $item->id,
-            'score' => 85,
+            'form_item_id' => $item->id,
+            'score_value' => 85,
         ]);
 
         $this->assessment->refresh();
@@ -115,14 +117,14 @@ class AssessmentScoringTest extends TestCase
     /** @test */
     public function assessor_can_submit_assessment(): void
     {
-        $section = KpiFormSection::factory()->create(['version_id' => $this->formVersion->id]);
+        $section = KpiFormSection::factory()->create(['form_version_id' => $this->formVersion->id]);
         $item = KpiFormItem::factory()->create(['section_id' => $section->id]);
 
         // First save scores
         AssessmentItemValue::factory()->create([
             'assessment_id' => $this->assessment->id,
-            'item_id' => $item->id,
-            'score' => 90,
+            'form_item_id' => $item->id,
+            'score_value' => 90,
         ]);
 
         $response = $this->actingAs($this->assessor)
@@ -138,7 +140,7 @@ class AssessmentScoringTest extends TestCase
     /** @test */
     public function assessor_cannot_submit_assessment_without_scores(): void
     {
-        $section = KpiFormSection::factory()->create(['version_id' => $this->formVersion->id]);
+        $section = KpiFormSection::factory()->create(['form_version_id' => $this->formVersion->id]);
         KpiFormItem::factory()->create(['section_id' => $section->id]);
 
         $response = $this->actingAs($this->assessor)
@@ -156,12 +158,15 @@ class AssessmentScoringTest extends TestCase
         // Create another assessor's assessment
         $otherAssessor = AssessorProfile::factory()->create();
         $otherAssessment = Assessment::factory()->create([
-            'assessor_id' => $otherAssessor->id,
+            'assessor_profile_id' => $otherAssessor->id,
             'status' => 'pending',
         ]);
 
         $response = $this->actingAs($this->assessor)
-            ->get(route('assessor.assessments.score', $otherAssessment));
+            ->get(route('assessor.assessments.score', [
+                'period' => $otherAssessment->period,
+                'teacher' => $otherAssessment->teacher
+            ]));
 
         $response->assertStatus(403);
     }
@@ -182,7 +187,7 @@ class AssessmentScoringTest extends TestCase
     /** @test */
     public function assessment_scores_are_validated(): void
     {
-        $section = KpiFormSection::factory()->create(['version_id' => $this->formVersion->id]);
+        $section = KpiFormSection::factory()->create(['form_version_id' => $this->formVersion->id]);
         $item = KpiFormItem::factory()->create(['section_id' => $section->id]);
 
         $response = $this->actingAs($this->assessor)

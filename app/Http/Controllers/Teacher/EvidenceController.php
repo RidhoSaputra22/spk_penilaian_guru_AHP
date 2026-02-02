@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
+use App\Models\AssessmentItemValue;
 use App\Models\EvidenceUpload;
 use App\Models\KpiFormItem;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ class EvidenceController extends Controller
                 $query->where('requires_evidence', true);
             },
         ])
-            ->where('teacher_id', $teacherProfile->id)
+            ->where('teacher_profile_id', $teacherProfile->id)
             ->whereIn('status', ['pending', 'draft', 'in_progress'])
             ->whereHas('period', function ($q) {
                 $q->where('status', 'active');
@@ -55,7 +56,7 @@ class EvidenceController extends Controller
         $teacherProfile = $user->teacherProfile;
 
         // Verify ownership
-        if ($assessment->teacher_id !== $teacherProfile?->id) {
+        if ($assessment->teacher_profile_id !== $teacherProfile?->id) {
             abort(403, 'Anda tidak memiliki akses.');
         }
 
@@ -82,15 +83,23 @@ class EvidenceController extends Controller
             }
         }
 
-        // Delete existing evidence if any
-        $existing = EvidenceUpload::where('assessment_id', $assessment->id)
+        // Find assessment item value to link the evidence
+        $assessmentItemValue = AssessmentItemValue::where('assessment_id', $assessment->id)
             ->where('form_item_id', $item->id)
+            ->first();
+
+        if (!$assessmentItemValue) {
+            return back()->with('error', 'Item nilai tidak ditemukan.');
+        }
+
+        // Delete existing evidence if any
+        $existing = EvidenceUpload::where('assessment_item_value_id', $assessmentItemValue->id)
             ->where('uploaded_by', $user->id)
             ->first();
 
         if ($existing) {
-            if ($existing->file_path) {
-                Storage::disk('public')->delete($existing->file_path);
+            if ($existing->path) {
+                Storage::disk('public')->delete($existing->path);
             }
             $existing->delete();
         }
@@ -112,15 +121,18 @@ class EvidenceController extends Controller
 
         // Create evidence record
         EvidenceUpload::create([
-            'assessment_id' => $assessment->id,
-            'form_item_id' => $item->id,
+            'assessment_item_value_id' => $assessmentItemValue->id,
             'uploaded_by' => $user->id,
-            'file_path' => $filePath,
-            'file_name' => $fileName,
-            'file_size' => $fileSize,
-            'file_type' => $fileType,
-            'link' => $request->link,
-            'description' => $request->description,
+            'path' => $filePath,
+            'original_name' => $fileName,
+            'size' => $fileSize,
+            'mime_type' => $fileType,
+            'url' => $request->link,
+            'meta' => [
+                'assessment_id' => $assessment->id,
+                'form_item_id' => $item->id,
+                'description' => $request->description,
+            ],
         ]);
 
         return back()->with('success', 'Bukti berhasil diunggah.');
@@ -136,13 +148,14 @@ class EvidenceController extends Controller
         }
 
         // Verify period is still active
-        if ($evidence->assessment->period->status !== 'active') {
+        $assessmentItemValue = $evidence->itemValue;
+        if ($assessmentItemValue->assessment->period->status !== 'active') {
             return back()->with('error', 'Periode penilaian sudah ditutup.');
         }
 
         // Delete file
-        if ($evidence->file_path) {
-            Storage::disk('public')->delete($evidence->file_path);
+        if ($evidence->path) {
+            Storage::disk('public')->delete($evidence->path);
         }
 
         $evidence->delete();
@@ -156,15 +169,16 @@ class EvidenceController extends Controller
         $teacherProfile = $user->teacherProfile;
 
         // Verify ownership
-        if ($evidence->uploaded_by !== $user->id && $evidence->assessment->teacher_id !== $teacherProfile?->id) {
+        $assessmentItemValue = $evidence->itemValue;
+        if ($evidence->uploaded_by !== $user->id && $assessmentItemValue->assessment->teacher_profile_id !== $teacherProfile?->id) {
             abort(403, 'Anda tidak memiliki akses.');
         }
 
-        if (!$evidence->file_path || !Storage::disk('public')->exists($evidence->file_path)) {
+        if (!$evidence->path || !Storage::disk('public')->exists($evidence->path)) {
             abort(404, 'File tidak ditemukan.');
         }
 
-        return Storage::disk('public')->download($evidence->file_path, $evidence->file_name);
+        return Storage::disk('public')->download($evidence->path, $evidence->original_name);
     }
 
     private function getAllowedTypes(KpiFormItem $item): array

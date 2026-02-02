@@ -227,12 +227,11 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'password' => ['required', 'confirmed', Password::defaults()],
-        ]);
+        // Generate new password (could be random or default)
+        $newPassword = 'password123'; // Default password
 
         $user->update([
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make($newPassword),
         ]);
 
         // Log activity
@@ -252,12 +251,12 @@ class UserController extends Controller
 
     public function toggleStatus(User $user)
     {
-        if ($user->deactivated_at) {
-            $user->update(['deactivated_at' => null]);
+        if ($user->status === 'inactive') {
+            $user->update(['status' => 'active']);
             $action = 'activate_user';
             $message = 'Pengguna berhasil diaktifkan.';
         } else {
-            $user->update(['deactivated_at' => now()]);
+            $user->update(['status' => 'inactive']);
             $action = 'deactivate_user';
             $message = 'Pengguna berhasil dinonaktifkan.';
         }

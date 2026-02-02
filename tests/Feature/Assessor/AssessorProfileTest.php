@@ -20,7 +20,7 @@ class AssessorProfileTest extends TestCase
     {
         parent::setUp();
 
-        $role = Role::factory()->create(['name' => 'assessor', 'slug' => 'assessor']);
+        $role = Role::factory()->create(['key' => 'assessor', 'name' => 'Assessor']);
         $this->assessor = User::factory()->create();
         $this->assessor->roles()->attach($role);
         $this->assessorProfile = AssessorProfile::factory()->create(['user_id' => $this->assessor->id]);
@@ -60,7 +60,7 @@ class AssessorProfileTest extends TestCase
         $this->assessor->update(['password' => Hash::make('oldpassword')]);
 
         $response = $this->actingAs($this->assessor)
-            ->put(route('assessor.profile.password'), [
+            ->put(route('assessor.profile.update-password'), [
                 'current_password' => 'oldpassword',
                 'password' => 'newpassword123',
                 'password_confirmation' => 'newpassword123',
@@ -79,7 +79,7 @@ class AssessorProfileTest extends TestCase
         $this->assessor->update(['password' => Hash::make('oldpassword')]);
 
         $response = $this->actingAs($this->assessor)
-            ->put(route('assessor.profile.password'), [
+            ->put(route('assessor.profile.update-password'), [
                 'current_password' => 'wrongpassword',
                 'password' => 'newpassword123',
                 'password_confirmation' => 'newpassword123',
