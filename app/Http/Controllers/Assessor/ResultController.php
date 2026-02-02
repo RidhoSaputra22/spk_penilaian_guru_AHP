@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Assessor;
 
+use App\Enums\AssessmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
@@ -23,7 +24,7 @@ class ResultController extends Controller
         }
 
         $query = Assessment::where('assessor_profile_id', $assessorProfile->id)
-            ->whereIn('status', ['submitted', 'finalized'])
+            ->whereIn('status', ['submitted', AssessmentStatus::Finalized])
             ->with(['teacher.user', 'period', 'assignment.formVersion.template']);
 
         // Filter by period

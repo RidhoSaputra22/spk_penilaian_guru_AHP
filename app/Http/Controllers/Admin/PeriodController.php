@@ -17,7 +17,7 @@ class PeriodController extends Controller
     {
         $institution = auth()->user()->institution;
 
-        $query = AssessmentPeriod::with(['criteriaSet'])
+        $query = AssessmentPeriod::with(['ahpModel.criteriaSet'])
             ->where('institution_id', $institution?->id);
 
         // Status filter
@@ -87,7 +87,7 @@ class PeriodController extends Controller
 
     public function show(AssessmentPeriod $period)
     {
-        $period->load(['criteriaSet.criteriaNodes', 'ahpModel.weights']);
+        $period->load(['ahpModel.criteriaSet.nodes', 'ahpModel.weights']);
 
         // Get assessment stats
         $assessmentStats = Assessment::where('assessment_period_id', $period->id)
@@ -185,5 +185,33 @@ class PeriodController extends Controller
         ]);
 
         return back()->with('success', 'Status periode berhasil diperbarui.');
+    }
+
+    public function close(AssessmentPeriod $period)
+    {
+        // Validate that period can be closed
+        if ($period->status !== 'open') {
+            return back()->with('error', 'Periode ini tidak dapat ditutup karena status bukan open.');
+        }
+
+        // Update period status to closed and set close date
+        $period->update([
+            'status' => 'closed',
+            'scoring_close_at' => now(),
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'close_period',
+            'entity_type' => AssessmentPeriod::class,
+            'entity_id' => $period->id,
+            'description' => "Closed assessment period: {$period->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return back()->with('success', 'Periode penilaian berhasil ditutup.');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Teacher;
 
+use App\Enums\AssessmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
@@ -67,7 +68,7 @@ class ResultController extends Controller
             ])
                 ->where('teacher_profile_id', $teacherProfile->id)
                 ->where('assessment_period_id', $assessmentPeriodId)
-                ->whereIn('status', ['submitted', 'finalized'])
+                ->whereIn('status', ['submitted', AssessmentStatus::Finalized])
                 ->get();
         }
 
@@ -101,7 +102,7 @@ class ResultController extends Controller
             ])
                 ->where('teacher_profile_id', $teacherProfile->id)
                 ->where('assessment_period_id', $assessmentPeriodId)
-                ->whereIn('status', ['submitted', 'finalized'])
+                ->whereIn('status', ['submitted', AssessmentStatus::Finalized])
                 ->get();
         }
 

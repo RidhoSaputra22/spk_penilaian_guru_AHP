@@ -90,13 +90,21 @@ class AssessmentController extends Controller
         $period = AssessmentPeriod::findOrFail($validated['period_id']);
 
         // Get or create form assignment
+        // Get the latest active KPI form version for this institution
+        $latestFormVersion = \App\Models\KpiFormVersion::whereHas('template', function($q) use ($period) {
+                $q->where('institution_id', $period->institution_id);
+            })
+            ->where('status', 'published')
+            ->latest('version')
+            ->first();
+
         $assignment = KpiFormAssignment::firstOrCreate(
             [
                 'assessment_period_id' => $period->id,
             ],
             [
                 'id' => Str::ulid(),
-                'form_version_id' => $period->kpiFormTemplate?->versions()->latest('version_number')->first()?->id,
+                'form_version_id' => $latestFormVersion?->id,
                 'status' => 'active',
                 'assigned_at' => now(),
                 'assigned_by' => auth()->id(),

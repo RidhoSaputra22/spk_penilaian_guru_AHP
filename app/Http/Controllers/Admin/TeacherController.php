@@ -17,7 +17,7 @@ class TeacherController extends Controller
     {
         $institution = auth()->user()->institution;
 
-        $query = TeacherProfile::with(['user', 'teacherGroup'])
+        $query = TeacherProfile::with(['user', 'groups'])
             ->whereHas('user', function($q) use ($institution) {
                 $q->where('institution_id', $institution?->id);
             });
@@ -29,23 +29,24 @@ class TeacherController extends Controller
                 $q->whereHas('user', function($q2) use ($search) {
                     $q2->where('name', 'like', "%{$search}%");
                 })
-                ->orWhere('nip', 'like', "%{$search}%")
-                ->orWhere('nuptk', 'like', "%{$search}%");
+                ->orWhere('employee_no', 'like', "%{$search}%");
             });
         }
 
         // Group filter
         if ($request->filled('group')) {
-            $query->where('teacher_group_id', $request->group);
+            $query->whereHas('groups', function($q) use ($request) {
+                $q->where('teacher_groups.id', $request->group);
+            });
         }
 
         // Status filter
         if ($request->filled('status')) {
             $query->whereHas('user', function($q) use ($request) {
                 if ($request->status === 'active') {
-                    $q->whereNull('deactivated_at');
+                    $q->whereNull('users.deactivated_at');
                 } else {
-                    $q->whereNotNull('deactivated_at');
+                    $q->whereNotNull('users.deactivated_at');
                 }
             });
         }
@@ -62,7 +63,7 @@ class TeacherController extends Controller
         if ($activePeriod) {
             $teachers->getCollection()->transform(function($teacher) use ($activePeriod) {
                 $assessment = Assessment::where('teacher_profile_id', $teacher->id)
-                    ->where('period_id', $activePeriod->id)
+                    ->where('assessment_period_id', $activePeriod->id)
                     ->first();
 
                 $teacher->current_assessment_status = $assessment?->status ?? 'not_assigned';

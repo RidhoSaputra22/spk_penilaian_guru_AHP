@@ -16,8 +16,8 @@ class CriteriaController extends Controller
     {
         $institution = auth()->user()->institution;
 
-        $criteriaSets = CriteriaSet::with(['criteriaNodes' => function($q) {
-            $q->orderBy('level')->orderBy('sort_order');
+        $criteriaSets = CriteriaSet::with(['nodes' => function($q) {
+            $q->orderBy('sort_order');
         }])
         ->where('institution_id', $institution?->id)
         ->get();

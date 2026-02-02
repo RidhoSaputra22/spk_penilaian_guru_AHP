@@ -43,11 +43,12 @@ class UserController extends Controller
             'roles' => ['required', 'array'],
             'roles.*' => ['exists:roles,id'],
             // Teacher fields
-            'nuptk' => ['nullable', 'string', 'max:50'],
-            'nip' => ['nullable', 'string', 'max:50'],
-            'rank' => ['nullable', 'string', 'max:100'],
+            'employee_no' => ['nullable', 'string', 'max:50'],
+            'subject' => ['nullable', 'string', 'max:100'],
+            'employment_status' => ['nullable', 'string', 'max:50'],
             'position' => ['nullable', 'string', 'max:100'],
-            'teacher_group_id' => ['nullable', 'exists:teacher_groups,id'],
+            'teacher_group_ids' => ['nullable', 'array'],
+            'teacher_group_ids.*' => ['exists:teacher_groups,id'],
             // Assessor fields
             'assessor_type' => ['nullable', 'string', 'in:principal,supervisor,peer'],
         ]);
@@ -66,15 +67,19 @@ class UserController extends Controller
         // Check if teacher role is selected
         $teacherRole = Role::where('key', 'teacher')->first();
         if ($teacherRole && in_array($teacherRole->id, $validated['roles'])) {
-            TeacherProfile::create([
+            $teacherProfile = TeacherProfile::create([
                 'id' => Str::ulid(),
                 'user_id' => $user->id,
-                'teacher_group_id' => $validated['teacher_group_id'] ?? null,
-                'nuptk' => $validated['nuptk'] ?? null,
-                'nip' => $validated['nip'] ?? null,
-                'rank' => $validated['rank'] ?? null,
+                'employee_no' => $validated['employee_no'] ?? null,
+                'subject' => $validated['subject'] ?? null,
+                'employment_status' => $validated['employment_status'] ?? null,
                 'position' => $validated['position'] ?? null,
             ]);
+
+            // Attach teacher to groups (many-to-many)
+            if (!empty($validated['teacher_group_ids'])) {
+                $teacherProfile->groups()->attach($validated['teacher_group_ids']);
+            }
         }
 
         // Check if assessor role is selected
@@ -83,7 +88,9 @@ class UserController extends Controller
             AssessorProfile::create([
                 'id' => Str::ulid(),
                 'user_id' => $user->id,
-                'assessor_type' => $validated['assessor_type'] ?? 'peer',
+                'meta' => [
+                    'type' => $validated['assessor_type'] ?? 'peer',
+                ],
             ]);
         }
 

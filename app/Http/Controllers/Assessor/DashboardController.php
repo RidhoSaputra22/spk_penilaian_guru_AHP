@@ -20,7 +20,7 @@ class DashboardController extends Controller
         }
 
         // Get active periods where assessor is assigned
-        $activePeriods = AssessmentPeriod::where('status', 'active')
+        $activePeriods = AssessmentPeriod::where('status', 'open')
             ->whereHas('assignments', function ($query) use ($assessorProfile) {
                 $query->whereHas('assessors', function ($q) use ($assessorProfile) {
                     $q->where('assessor_profile_id', $assessorProfile->id);

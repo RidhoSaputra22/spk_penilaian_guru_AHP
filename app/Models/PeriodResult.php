@@ -16,14 +16,12 @@ class PeriodResult extends Model
         'generated_at',
         'published_at',
         'generated_by',
-        'calculated_at',
         'meta',
     ];
 
     protected $casts = [
         'generated_at' => 'datetime',
         'published_at' => 'datetime',
-        'calculated_at' => 'datetime',
         'meta' => 'array',
     ];
 

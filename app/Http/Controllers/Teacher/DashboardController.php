@@ -46,7 +46,7 @@ class DashboardController extends Controller
         $activePeriods = AssessmentPeriod::whereHas('assessments', function ($query) use ($teacherProfile) {
             $query->where('teacher_profile_id', $teacherProfile->id);
         })
-            ->where('status', 'active')
+            ->where('status', 'open')
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();

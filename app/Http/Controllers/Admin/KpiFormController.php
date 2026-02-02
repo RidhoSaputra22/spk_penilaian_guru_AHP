@@ -20,7 +20,7 @@ class KpiFormController extends Controller
         $institution = auth()->user()->institution;
 
         $templates = KpiFormTemplate::with(['versions' => function ($q) {
-            $q->latest('version_number');
+            $q->latest('version');
         }])
             ->where('institution_id', $institution?->id)
             ->latest()
@@ -53,7 +53,7 @@ class KpiFormController extends Controller
         KpiFormVersion::create([
             'id' => Str::ulid(),
             'template_id' => $template->id,
-            'version_number' => 1,
+            'version' => 1,
             'status' => 'draft',
         ]);
 
@@ -71,6 +71,78 @@ class KpiFormController extends Controller
 
         return redirect()->route('admin.kpi-forms.builder', $template)
             ->with('success', 'Template form KPI berhasil dibuat.');
+    }
+
+    public function edit(KpiFormTemplate $template)
+    {
+        $criteriaSets = CriteriaSet::where('institution_id', auth()->user()->institution_id)->get();
+
+        return view('admin.kpi-forms.edit', compact('template', 'criteriaSets'));
+    }
+
+    public function update(Request $request, KpiFormTemplate $template)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+        ]);
+
+        $template->update($validated);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'update_kpi_template_info',
+            'entity_type' => KpiFormTemplate::class,
+            'entity_id' => $template->id,
+            'description' => "Updated KPI form template info: {$template->name}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->route('admin.kpi-forms.index')
+            ->with('success', 'Template form KPI berhasil diperbarui.');
+    }
+
+    public function clone(KpiFormTemplate $template)
+    {
+        $newTemplate = KpiFormTemplate::create([
+            'id' => Str::ulid(),
+            'institution_id' => $template->institution_id,
+            'name' => $template->name . ' (Copy)',
+            'description' => $template->description,
+        ]);
+
+        // Create initial version
+        KpiFormVersion::create([
+            'id' => Str::ulid(),
+            'template_id' => $newTemplate->id,
+            'version' => 1,
+            'status' => 'draft',
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'clone_kpi_template',
+            'entity_type' => KpiFormTemplate::class,
+            'entity_id' => $newTemplate->id,
+            'description' => "Cloned KPI form template: {$template->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return redirect()->route('admin.kpi-forms.index')
+            ->with('success', 'Template form KPI berhasil diduplikasi.');
+    }
+
+    public function versions(KpiFormTemplate $template)
+    {
+        $versions = $template->versions()->with(['sections.items.options'])->latest('version')->get();
+
+        return view('admin.kpi-forms.versions', compact('template', 'versions'));
     }
 
     public function builder(KpiFormTemplate $template)
@@ -98,7 +170,7 @@ class KpiFormController extends Controller
             'sections.*.items.*.options' => ['nullable', 'array'],
         ]);
 
-        $latestVersion = $template->versions()->latest('version_number')->first();
+        $latestVersion = $template->versions()->latest('version')->first();
 
         // Delete existing sections
         foreach ($latestVersion->sections as $section) {
@@ -113,7 +185,7 @@ class KpiFormController extends Controller
         foreach ($validated['sections'] as $sectionData) {
             $section = KpiFormSection::create([
                 'id' => Str::ulid(),
-                'version_id' => $latestVersion->id,
+                'form_version_id' => $latestVersion->id,
                 'title' => $sectionData['title'],
                 'description' => $sectionData['description'] ?? null,
                 'sort_order' => $sectionData['sort_order'],
@@ -138,7 +210,7 @@ class KpiFormController extends Controller
                                 'item_id' => $item->id,
                                 'label' => $optionData['label'],
                                 'value' => $optionData['value'] ?? $index,
-                                'score' => $optionData['score'] ?? null,
+                                'score_value' => $optionData['score_value'] ?? null,
                                 'sort_order' => $index,
                             ]);
                         }

@@ -35,4 +35,19 @@ class AssessorProfile extends Model
     {
         return $this->hasMany(Assessment::class);
     }
+
+    /**
+     * Get the assessor type based on user's roles or meta data
+     */
+    public function getAssessorTypeAttribute()
+    {
+        // Check meta data first
+        if (isset($this->meta['type'])) {
+            return $this->meta['type'];
+        }
+
+        // For now, default to 'peer' since we only have basic roles
+        // This can be extended when principal/supervisor roles are created
+        return 'peer';
+    }
 }

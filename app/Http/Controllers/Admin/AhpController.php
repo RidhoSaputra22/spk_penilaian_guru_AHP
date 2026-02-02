@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\AhpModelStatus;
+use App\Enums\AssessmentPeriodStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AhpModel;
 use App\Models\AhpComparison;
@@ -48,7 +50,9 @@ class AhpController extends Controller
                 ->get() : collect();
 
             if ($ahpModel) {
-                $comparisons = AhpComparison::where('ahp_model_id', $ahpModel->id)->get();
+                $comparisons = AhpComparison::where('ahp_model_id', $ahpModel->id)
+                    ->with(['nodeA', 'nodeB'])
+                    ->get();
                 $weights = AhpWeight::where('ahp_model_id', $ahpModel->id)->get();
             }
         }
@@ -81,7 +85,7 @@ class AhpController extends Controller
             'id' => Str::ulid(),
             'assessment_period_id' => $period->id,
             'criteria_set_id' => $validated['criteria_set_id'],
-            'status' => 'draft',
+            'status' => AhpModelStatus::Draft,
         ]);
 
         // Log activity
@@ -100,17 +104,18 @@ class AhpController extends Controller
             ->with('success', 'Model AHP berhasil dibuat.');
     }
 
-    public function saveComparisons(Request $request)
+    public function saveComparisons(Request $request, AhpModel $ahpModel = null)
     {
         $validated = $request->validate([
-            'ahp_model_id' => ['required', 'exists:ahp_models,id'],
+            'ahp_model_id' => $ahpModel ? ['nullable'] : ['required', 'exists:ahp_models,id'],
             'comparisons' => ['required', 'array'],
-            'comparisons.*.criteria_i_id' => ['required', 'exists:criteria_nodes,id'],
-            'comparisons.*.criteria_j_id' => ['required', 'exists:criteria_nodes,id'],
+            'comparisons.*.node_a_id' => ['required', 'exists:criteria_nodes,id'],
+            'comparisons.*.node_b_id' => ['required', 'exists:criteria_nodes,id'],
             'comparisons.*.value' => ['required', 'numeric', 'min:0.111', 'max:9'],
         ]);
 
-        $ahpModel = AhpModel::findOrFail($validated['ahp_model_id']);
+        // Use the route model binding if provided, otherwise use from request
+        $ahpModel = $ahpModel ?? AhpModel::findOrFail($validated['ahp_model_id']);
 
         // Delete existing comparisons
         AhpComparison::where('ahp_model_id', $ahpModel->id)->delete();
@@ -120,9 +125,9 @@ class AhpController extends Controller
             AhpComparison::create([
                 'id' => Str::ulid(),
                 'ahp_model_id' => $ahpModel->id,
-                'parent_criteria_id' => null, // Root level
-                'criteria_i_id' => $comparison['criteria_i_id'],
-                'criteria_j_id' => $comparison['criteria_j_id'],
+                'parent_node_id' => null, // Root level
+                'node_a_id' => $comparison['node_a_id'],
+                'node_b_id' => $comparison['node_b_id'],
                 'value' => $comparison['value'],
             ]);
         }
@@ -247,7 +252,7 @@ class AhpController extends Controller
         }
 
         $ahpModel->update([
-            'status' => 'finalized',
+            'status' => AhpModelStatus::Finalized,
             'finalized_at' => now(),
             'finalized_by' => auth()->id(),
         ]);
@@ -269,7 +274,7 @@ class AhpController extends Controller
 
     public function reset(AhpModel $ahpModel)
     {
-        if ($ahpModel->status === 'finalized') {
+        if ($ahpModel->status === AhpModelStatus::Finalized) {
             return back()->with('error', 'Model AHP yang sudah final tidak dapat direset.');
         }
 
@@ -279,7 +284,7 @@ class AhpController extends Controller
 
         $ahpModel->update([
             'consistency_ratio' => null,
-            'status' => 'draft',
+            'status' => AhpModelStatus::Draft,
         ]);
 
         // Log activity

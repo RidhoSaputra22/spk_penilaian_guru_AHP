@@ -31,7 +31,7 @@ class ResultController extends Controller
                 $periodResult = PeriodResult::where('assessment_period_id', $selectedPeriod->id)->first();
 
                 if ($periodResult) {
-                    $query = TeacherPeriodResult::with(['teacher.user', 'teacher.teacherGroup'])
+                    $query = TeacherPeriodResult::with(['teacher.user', 'teacher.groups'])
                         ->where('period_result_id', $periodResult->id);
 
                     // Search filter
@@ -59,8 +59,8 @@ class ResultController extends Controller
 
                     // Group filter
                     if ($request->filled('group')) {
-                        $query->whereHas('teacher', function ($q) use ($request) {
-                            $q->where('teacher_group_id', $request->group);
+                        $query->whereHas('teacher.groups', function ($q) use ($request) {
+                            $q->where('teacher_groups.id', $request->group);
                         });
                     }
 
@@ -149,7 +149,7 @@ class ResultController extends Controller
             return back()->with('error', 'Hasil belum dihitung untuk periode ini.');
         }
 
-        $results = TeacherPeriodResult::with(['teacher.user', 'teacher.teacherGroup'])
+        $results = TeacherPeriodResult::with(['teacher.user', 'teacher.groups'])
             ->where('period_result_id', $periodResult->id)
             ->orderByDesc('final_score')
             ->get();
@@ -166,7 +166,7 @@ class ResultController extends Controller
             fputcsv($file, [
                 'Ranking',
                 'Nama Guru',
-                'NIP',
+                'No. Pegawai',
                 'Kelompok',
                 'Skor Akhir',
                 'Grade',
@@ -177,8 +177,8 @@ class ResultController extends Controller
                 fputcsv($file, [
                     $index + 1,
                     $result->teacher->user->name ?? '-',
-                    $result->teacher->nip ?? '-',
-                    $result->teacher->teacherGroup->name ?? '-',
+                    $result->teacher->employee_no ?? '-',
+                    $result->teacher->groups->first()?->name ?? '-',
                     number_format($result->final_score, 4),
                     $this->determineGrade($result->final_score),
                 ]);
@@ -196,7 +196,7 @@ class ResultController extends Controller
             'period_id' => ['required', 'exists:assessment_periods,id'],
         ]);
 
-        $period = AssessmentPeriod::with(['ahpModel.weights', 'ahpModel.criteriaSet.criteriaNodes'])
+        $period = AssessmentPeriod::with(['ahpModel.weights', 'ahpModel.criteriaSet.nodes'])
             ->findOrFail($validated['period_id']);
 
         if (! $period->ahpModel || $period->ahpModel->status !== 'finalized') {
@@ -209,7 +209,7 @@ class ResultController extends Controller
         // Get all completed assessments for this period
         $assessments = Assessment::where('assessment_period_id', $period->id)
             ->where('status', 'submitted')
-            ->with('itemValues')
+            ->with('itemValues.formItem')
             ->get()
             ->groupBy('teacher_profile_id');
 
@@ -224,8 +224,8 @@ class ResultController extends Controller
                 ['assessment_period_id' => $period->id],
                 [
                     'id' => Str::ulid(),
-                    'calculated_at' => now(),
-                    'status' => 'calculated',
+                    'generated_at' => now(),
+                    'status' => 'generated',
                 ]
             );
 
@@ -236,15 +236,19 @@ class ResultController extends Controller
 
                 foreach ($weights as $criteriaId => $weight) {
                     // Average score from all assessors for this criteria
+                    // Filter by criteria_node_id through formItem relationship
                     $avgScore = $teacherAssessments->flatMap->itemValues
-                        ->where('criteria_node_id', $criteriaId)
-                        ->avg('score') ?? 0;
+                        ->filter(function ($itemValue) use ($criteriaId) {
+                            return $itemValue->formItem?->criteria_node_id === $criteriaId;
+                        })
+                        ->avg('score_value') ?? 0;
 
                     $weightedScore = $avgScore * $weight;
                     $totalWeightedScore += $weightedScore;
 
                     $criteriaScores[$criteriaId] = [
                         'raw_score' => $avgScore,
+                        'weight' => $weight,
                         'weighted_score' => $weightedScore,
                     ];
                 }
@@ -272,6 +276,7 @@ class ResultController extends Controller
                         [
                             'id' => Str::ulid(),
                             'raw_score' => $scores['raw_score'],
+                            'weight' => $scores['weight'],
                             'weighted_score' => $scores['weighted_score'],
                         ]
                     );
@@ -287,7 +292,7 @@ class ResultController extends Controller
                 $result->update(['rank' => $index + 1]);
             }
 
-            $periodResult->update(['calculated_at' => now()]);
+            $periodResult->update(['generated_at' => now()]);
 
             DB::commit();
 

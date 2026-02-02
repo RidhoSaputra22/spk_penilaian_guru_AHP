@@ -28,15 +28,13 @@ class EvidenceController extends Controller
         $assessments = Assessment::with([
             'period',
             'assignment.formVersion.template',
-            'assignment.formVersion.sections.items' => function ($query) {
-                $query->where('requires_evidence', true);
-            },
+            'assignment.formVersion.sections.items',
             'itemValues',
         ])
             ->where('teacher_profile_id', $teacherProfile->id)
             ->whereIn('status', ['pending', 'draft', 'in_progress'])
             ->whereHas('period', function ($q) {
-                $q->where('status', 'active');
+                $q->where('status', 'open');
             })
             ->orderBy('created_at', 'desc')
             ->get();
@@ -75,7 +73,7 @@ class EvidenceController extends Controller
         }
 
         // Verify period is active
-        if ($assessment->period->status !== 'active') {
+        if ($assessment->period->status !== 'open') {
             return back()->with('error', 'Periode penilaian sudah ditutup.');
         }
 
@@ -159,7 +157,7 @@ class EvidenceController extends Controller
 
         // Verify period is still active
         $assessmentItemValue = $evidence->itemValue;
-        if ($assessmentItemValue->assessment->period->status !== 'active') {
+        if ($assessmentItemValue->assessment->period->status !== 'open') {
             return back()->with('error', 'Periode penilaian sudah ditutup.');
         }
 

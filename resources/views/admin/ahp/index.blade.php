@@ -98,19 +98,19 @@
                                     @forelse($comparisons ?? [] as $comparison)
                                         <tr>
                                             <td class="font-medium">
-                                                {{ $comparison['node_a']->name }}
+                                                {{ $comparison->nodeA?->name ?? 'N/A' }}
                                             </td>
                                             <td>
                                                 <div class="flex items-center justify-center gap-2">
                                                     @php
                                                         $scales = [9, 7, 5, 3, 1, '1/3', '1/5', '1/7', '1/9'];
-                                                        $currentValue = $comparison['value'] ?? 1;
+                                                        $currentValue = $comparison->value ?? 1;
                                                     @endphp
 
                                                     <span class="text-xs text-base-content/60">← Lebih penting</span>
 
                                                     <select
-                                                        name="comparisons[{{ $comparison['node_a']->id }}][{{ $comparison['node_b']->id }}]"
+                                                        name="comparisons[{{ $comparison->nodeA?->id }}][{{ $comparison->nodeB?->id }}]"
                                                         class="select select-bordered select-sm w-24"
                                                         {{ $ahpModel->status === 'finalized' ? 'disabled' : '' }}
                                                     >
@@ -128,7 +128,7 @@
                                                 </div>
                                             </td>
                                             <td class="font-medium text-right">
-                                                {{ $comparison['node_b']->name }}
+                                                {{ $comparison->nodeB?->name ?? 'N/A' }}
                                             </td>
                                         </tr>
                                     @empty

@@ -28,7 +28,7 @@ class AssessmentController extends Controller
         }
 
         // Get periods where assessor has assignments
-        $periods = AssessmentPeriod::whereIn('status', ['active', 'closed'])
+        $periods = AssessmentPeriod::whereIn('status', ['open', 'closed'])
             ->whereHas('assignments', function ($query) use ($assessorProfile) {
                 $query->whereHas('assessors', function ($q) use ($assessorProfile) {
                     $q->where('assessor_profile_id', $assessorProfile->id);
@@ -139,7 +139,7 @@ class AssessmentController extends Controller
         }
 
         // Check if period is still open for scoring
-        if ($period->status !== 'active') {
+        if ($period->status !== 'open') {
             return redirect()->route('assessor.assessments.period', $period)
                 ->with('error', 'Periode penilaian sudah ditutup.');
         }
@@ -292,7 +292,7 @@ class AssessmentController extends Controller
                 'from_status' => 'draft',
                 'to_status' => 'submitted',
                 'changed_by' => auth()->id(),
-                'notes' => 'Submitted by assessor',
+                'reason' => 'Submitted by assessor',
             ]);
         });
 

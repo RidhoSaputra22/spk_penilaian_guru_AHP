@@ -39,10 +39,9 @@ Route::get('/', function () {
 | Authentication Routes
 |--------------------------------------------------------------------------
 */
-Route::middleware('guest')->group(function () {
-    Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
-});
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
+Route::post('/login', [LoginController::class, 'login']);
+// Route::middleware('guest')->group(function () {});
 
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
@@ -63,6 +62,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     // Period Management
     Route::resource('periods', PeriodController::class);
     Route::post('periods/{period}/status', [PeriodController::class, 'updateStatus'])->name('periods.update-status');
+    Route::patch('periods/{period}/close', [PeriodController::class, 'close'])->name('periods.close');
 
     // Criteria Management
     Route::get('criteria', [CriteriaController::class, 'index'])->name('criteria.index');
@@ -82,6 +82,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('ahp', [AhpController::class, 'index'])->name('ahp.index');
     Route::post('ahp/model', [AhpController::class, 'createModel'])->name('ahp.create-model');
     Route::post('ahp/comparisons', [AhpController::class, 'saveComparisons'])->name('ahp.save-comparisons');
+    Route::post('ahp/{ahpModel}/comparisons', [AhpController::class, 'saveComparisons'])->name('ahp.store-comparisons');
     Route::post('ahp/{ahpModel}/finalize', [AhpController::class, 'finalize'])->name('ahp.finalize');
     Route::post('ahp/{ahpModel}/reset', [AhpController::class, 'reset'])->name('ahp.reset');
 
@@ -89,6 +90,10 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('kpi-forms', [KpiFormController::class, 'index'])->name('kpi-forms.index');
     Route::get('kpi-forms/create', [KpiFormController::class, 'create'])->name('kpi-forms.create');
     Route::post('kpi-forms', [KpiFormController::class, 'store'])->name('kpi-forms.store');
+    Route::get('kpi-forms/{template}/edit', [KpiFormController::class, 'edit'])->name('kpi-forms.edit');
+    Route::put('kpi-forms/{template}', [KpiFormController::class, 'update'])->name('kpi-forms.update');
+    Route::post('kpi-forms/{template}/clone', [KpiFormController::class, 'clone'])->name('kpi-forms.clone');
+    Route::get('kpi-forms/{template}/versions', [KpiFormController::class, 'versions'])->name('kpi-forms.versions');
     Route::get('kpi-forms/{template}/builder', [KpiFormController::class, 'builder'])->name('kpi-forms.builder');
     Route::post('kpi-forms/{template}/builder', [KpiFormController::class, 'saveBuilder'])->name('kpi-forms.save-builder');
     Route::get('kpi-forms/{template}/preview', [KpiFormController::class, 'preview'])->name('kpi-forms.preview');
