@@ -110,7 +110,7 @@ class KpiFormController extends Controller
         $newTemplate = KpiFormTemplate::create([
             'id' => Str::ulid(),
             'institution_id' => $template->institution_id,
-            'name' => $template->name . ' (Copy)',
+            'name' => $template->name.' (Copy)',
             'description' => $template->description,
         ]);
 
@@ -147,10 +147,26 @@ class KpiFormController extends Controller
 
     public function builder(KpiFormTemplate $template)
     {
+        $version = $template->versions()->with(['sections.items.options'])->latest('version')->first();
+
+        // If no version exists, create one
+        if (! $version) {
+            $version = KpiFormVersion::create([
+                'id' => Str::ulid(),
+                'template_id' => $template->id,
+                'version' => '1.0',
+                'status' => 'draft',
+            ]);
+        }
+
+        $criteriaNodes = \App\Models\CriteriaNode::whereHas('set', function ($q) {
+            $q->where('institution_id', auth()->user()->institution_id);
+        })->get();
+
         return view('admin.kpi-forms.builder_simple', [
             'template' => $template,
-            'version' => null,
-            'criteriaSets' => collect([])
+            'version' => $version,
+            'criteriaNodes' => $criteriaNodes,
         ]);
     }
 
@@ -236,15 +252,211 @@ class KpiFormController extends Controller
 
     public function preview(KpiFormTemplate $template)
     {
+        $latestVersion = $template->versions()->with(['sections.items.options'])->latest('version')->first();
+
         return view('admin.kpi-forms.preview', [
             'template' => $template,
-            'latestVersion' => null
+            'latestVersion' => $latestVersion,
         ]);
     }
 
     public function publish(Request $request, KpiFormTemplate $template)
     {
+        $version = $template->versions()->where('status', 'draft')->latest('version')->first();
+
+        if ($version) {
+            $version->update(['status' => 'published']);
+
+            ActivityLog::create([
+                'id' => Str::ulid(),
+                'user_id' => auth()->id(),
+                'action' => 'publish_kpi_form',
+                'entity_type' => KpiFormVersion::class,
+                'entity_id' => $version->id,
+                'description' => "Published KPI form: {$template->name} v{$version->version}",
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        }
+
         return back()->with('success', 'Form KPI berhasil dipublikasi.');
+    }
+
+    public function publishVersion(Request $request, KpiFormVersion $version)
+    {
+        $version->update(['status' => 'published']);
+
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'publish_kpi_form',
+            'entity_type' => KpiFormVersion::class,
+            'entity_id' => $version->id,
+            'description' => "Published KPI form version: v{$version->version}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return back()->with('success', 'Form KPI berhasil dipublikasi.');
+    }
+
+    public function addSection(Request $request, KpiFormVersion $version)
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
+        ]);
+
+        $maxSortOrder = $version->sections()->max('sort_order') ?? 0;
+
+        KpiFormSection::create([
+            'id' => Str::ulid(),
+            'form_version_id' => $version->id,
+            'criteria_node_id' => $validated['criteria_node_id'] ?? null,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'sort_order' => $maxSortOrder + 1,
+        ]);
+
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'add_kpi_section',
+            'entity_type' => KpiFormVersion::class,
+            'entity_id' => $version->id,
+            'description' => "Added section to KPI form: {$validated['title']}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return back()->with('success', 'Seksi berhasil ditambahkan.');
+    }
+
+    public function updateSection(Request $request, KpiFormSection $section)
+    {
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
+        ]);
+
+        $section->update($validated);
+
+        return back()->with('success', 'Seksi berhasil diperbarui.');
+    }
+
+    public function deleteSection(KpiFormSection $section)
+    {
+        // Delete all items and their options first
+        foreach ($section->items as $item) {
+            $item->options()->delete();
+        }
+        $section->items()->delete();
+        $section->delete();
+
+        return back()->with('success', 'Seksi berhasil dihapus.');
+    }
+
+    public function addItem(Request $request, KpiFormVersion $version)
+    {
+        $validated = $request->validate([
+            'section_id' => ['required', 'exists:kpi_form_sections,id'],
+            'label' => ['required', 'string', 'max:255'],
+            'help_text' => ['nullable', 'string'],
+            'field_type' => ['required', 'string', 'in:numeric,dropdown,radio,yesno,textarea'],
+            'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
+            'min_value' => ['nullable', 'numeric'],
+            'max_value' => ['nullable', 'numeric'],
+            'is_required' => ['nullable'],
+        ]);
+
+        $section = KpiFormSection::find($validated['section_id']);
+        $maxSortOrder = $section->items()->max('sort_order') ?? 0;
+
+        KpiFormItem::create([
+            'id' => Str::ulid(),
+            'section_id' => $validated['section_id'],
+            'criteria_node_id' => $validated['criteria_node_id'] ?? null,
+            'label' => $validated['label'],
+            'help_text' => $validated['help_text'] ?? null,
+            'field_type' => $validated['field_type'],
+            'min_value' => $validated['min_value'] ?? null,
+            'max_value' => $validated['max_value'] ?? null,
+            'is_required' => isset($validated['is_required']),
+            'sort_order' => $maxSortOrder + 1,
+        ]);
+
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'add_kpi_item',
+            'entity_type' => KpiFormSection::class,
+            'entity_id' => $section->id,
+            'description' => "Added item to KPI form section: {$validated['label']}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return back()->with('success', 'Item berhasil ditambahkan.');
+    }
+
+    public function showItem(KpiFormItem $item)
+    {
+        return response()->json([
+            'success' => true,
+            'item' => $item->only([
+                'id', 'label', 'help_text', 'field_type', 'criteria_node_id',
+                'min_value', 'max_value', 'is_required', 'sort_order'
+            ])
+        ]);
+    }
+
+    public function updateItem(Request $request, KpiFormItem $item)
+    {
+        $validated = $request->validate([
+            'label' => ['required', 'string', 'max:255'],
+            'help_text' => ['nullable', 'string'],
+            'field_type' => ['required', 'string', 'in:numeric,dropdown,radio,yesno,textarea'],
+            'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
+            'min_value' => ['nullable', 'numeric'],
+            'max_value' => ['nullable', 'numeric'],
+            'is_required' => ['nullable'],
+        ]);
+
+        $item->update([
+            ...$validated,
+            'is_required' => isset($validated['is_required']),
+        ]);
+
+        return back()->with('success', 'Item berhasil diperbarui.');
+    }
+
+    public function deleteItem(KpiFormItem $item)
+    {
+        $item->options()->delete();
+        $item->delete();
+
+        return back()->with('success', 'Item berhasil dihapus.');
+    }
+
+    public function deleteVersion(KpiFormTemplate $template, KpiFormVersion $version)
+    {
+        if ($version->status === 'published') {
+            return back()->with('error', 'Versi yang sudah dipublish tidak dapat dihapus.');
+        }
+
+        // Delete all related data
+        foreach ($version->sections as $section) {
+            foreach ($section->items as $item) {
+                $item->options()->delete();
+            }
+            $section->items()->delete();
+        }
+        $version->sections()->delete();
+        $version->delete();
+
+        return back()->with('success', 'Versi berhasil dihapus.');
     }
 
     public function createNewVersion(KpiFormTemplate $template)

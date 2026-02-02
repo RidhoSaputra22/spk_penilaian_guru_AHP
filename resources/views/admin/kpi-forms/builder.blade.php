@@ -1,12 +1,16 @@
-@extends('layouts.admin')
+<x-layouts.admin>
+    <x-slot:breadcrumbs>
+        <li><a href="{{ route('admin.kpi-forms.index') }}">Template Form KPI</a></li>
+        <li><a href="{{ route('admin.kpi-forms.edit', $template) }}">{{ $template->name }}</a></li>
+        <li>Form Builder</li>
+    </x-slot:breadcrumbs>
 
-@section('title', 'Form Builder - ' . $template->name)
-
-@section('content')
+    <x-slot:header>
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold">Form Builder: {{ $template->name }}</h1>
+                <h1 class="text-2xl font-bold">Form Builder</h1>
                 <p class="text-base-content/60">
+                    {{ $template->name }} •
                     Versi {{ $version->version }} •
                     <x-ui.badge type="{{ $version->status === 'published' ? 'success' : 'ghost' }}" size="xs">
                         {{ ucfirst($version->status) }}
@@ -29,9 +33,19 @@
                         Publish
                     </x-ui.button>
                 @endif
+                <x-ui.button type="ghost" href="{{ route('admin.kpi-forms.edit', $template) }}">
+                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                    </svg>
+                    Kembali
+                </x-ui.button>
             </div>
         </div>
     </x-slot:header>
+
+    @php
+        $criteriaOptions = collect($criteriaNodes ?? [])->mapWithKeys(fn($n) => [$n->id => $n->name])->toArray();
+    @endphp
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-6" x-data="formBuilder()">
         <!-- Toolbox -->
@@ -85,7 +99,7 @@
 
             <x-ui.card title="Kriteria" compact>
                 <div class="space-y-1 max-h-64 overflow-y-auto">
-                    @foreach($criteriaNodes ?? [] as $node)
+                    @forelse($criteriaNodes ?? [] as $node)
                         <div
                             draggable="true"
                             @dragstart="dragStartCriteria($event, '{{ $node->id }}', '{{ $node->name }}')"
@@ -96,7 +110,9 @@
                             @endif
                             <span>{{ Str::limit($node->name, 25) }}</span>
                         </div>
-                    @endforeach
+                    @empty
+                        <p class="text-sm text-base-content/60 p-2">Tidak ada kriteria</p>
+                    @endforelse
                 </div>
                 <p class="text-xs text-base-content/60 mt-3">Drag kriteria ke seksi</p>
             </x-ui.card>
@@ -219,7 +235,7 @@
 
                     @if(($version->sections ?? collect())->count() > 0)
                         <div class="flex justify-end mt-6 pt-6 border-t border-base-200">
-                            <x-ui.button type="primary">
+                            <x-ui.button type="primary" :isSubmit="true">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                 </svg>
@@ -232,72 +248,19 @@
         </div>
     </div>
 
-    <!-- Add Section Modal -->
-    <x-ui.modal id="add-section-modal" title="Tambah Seksi">
-        <form method="POST" action="{{ route('admin.kpi-forms.add-section', $version) }}" class="space-y-4">
-            @csrf
-            <x-ui.input name="title" label="Judul Seksi" required />
-            <x-ui.textarea name="description" label="Deskripsi" rows="2" />
-            <x-ui.select
-                name="criteria_node_id"
-                label="Kriteria (opsional)"
-                :options="collect($criteriaNodes ?? [])->mapWithKeys(fn($n) => [$n->id => $n->name])->toArray()"
-            />
-            <x-slot:actions>
-                <form method="dialog"><button class="btn btn-ghost">Batal</button></form>
-                <x-ui.button type="primary">Simpan</x-ui.button>
-            </x-slot:actions>
-        </form>
-    </x-ui.modal>
+    @include('admin.kpi-forms.partials.add-section-modal', ['version' => $version, 'criteriaOptions' => $criteriaOptions])
 
-    <!-- Add Item Modal -->
-    <x-ui.modal id="add-item-modal" title="Tambah Item" size="lg">
-        <form method="POST" action="{{ route('admin.kpi-forms.add-item', $version) }}" class="space-y-4">
-            @csrf
-            <input type="hidden" name="section_id" id="add-item-section-id">
-
-            <x-ui.input name="label" label="Label" required />
-            <x-ui.textarea name="help_text" label="Teks Bantuan" rows="2" />
-
-            <div class="grid grid-cols-2 gap-4">
-                <x-ui.select
-                    name="field_type"
-                    label="Tipe Field"
-                    :options="[
-                        'numeric' => 'Skor Numerik',
-                        'dropdown' => 'Dropdown Skala',
-                        'radio' => 'Radio Button',
-                        'yesno' => 'Ya/Tidak',
-                        'textarea' => 'Catatan'
-                    ]"
-                    required
-                    :searchable="false"
-                />
-                <x-ui.select
-                    name="criteria_node_id"
-                    label="Kriteria"
-                    :options="collect($criteriaNodes ?? [])->mapWithKeys(fn($n) => [$n->id => $n->name])->toArray()"
-                />
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <x-ui.input name="min_value" label="Nilai Minimum" type="number" />
-                <x-ui.input name="max_value" label="Nilai Maximum" type="number" />
-            </div>
-
-            <x-ui.checkbox
-                name="is_required"
-                :options="[['value' => '1', 'label' => 'Wajib diisi']]"
-                :checked="['1']"
-                :single="true"
-            />
-
-            <x-slot:actions>
-                <form method="dialog"><button class="btn btn-ghost">Batal</button></form>
-                <x-ui.button type="primary">Simpan</x-ui.button>
-            </x-slot:actions>
-        </form>
-    </x-ui.modal>
+    @include('admin.kpi-forms.partials.add-item-modal', [
+        'version' => $version,
+        'fieldTypes' => [
+            'numeric' => 'Skor Numerik',
+            'dropdown' => 'Dropdown Skala',
+            'radio' => 'Radio Button',
+            'yesno' => 'Ya/Tidak',
+            'textarea' => 'Catatan'
+        ],
+        'criteriaOptions' => $criteriaOptions
+    ])
 
     <!-- Publish Modal -->
     <x-ui.modal id="publish-modal" title="Publish Form">
@@ -305,14 +268,15 @@
         <p class="text-sm text-base-content/60 mt-2">Form yang sudah dipublish tidak dapat diubah lagi.</p>
         <x-slot:actions>
             <form method="dialog"><button class="btn btn-ghost">Batal</button></form>
-            <form method="POST" action="{{ route('admin.kpi-forms.publish', $version) }}">
+            <form method="POST" action="{{ route('admin.kpi-forms.publish-version', $version) }}">
                 @csrf
                 @method('PATCH')
-                <x-ui.button type="success">Publish</x-ui.button>
+                <x-ui.button type="success" :isSubmit="true">Publish</x-ui.button>
             </form>
         </x-slot:actions>
     </x-ui.modal>
 
+    @push('scripts')
     <script>
         function formBuilder() {
             return {
@@ -336,7 +300,6 @@
 
                 dropItem(event, sectionIndex) {
                     if (this.draggedType || this.draggedCriteria) {
-                        // Handle drop logic
                         console.log('Dropped:', this.draggedType, this.draggedCriteria, 'to section', sectionIndex);
                     }
                     this.draggedType = null;
@@ -351,27 +314,24 @@
         }
 
         function editSection(sectionId) {
-            // Implement edit section logic
             console.log('Edit section:', sectionId);
         }
 
         function deleteSection(sectionId) {
             if (confirm('Yakin ingin menghapus seksi ini?')) {
-                // Implement delete section logic
                 console.log('Delete section:', sectionId);
             }
         }
 
         function editItem(itemId) {
-            // Implement edit item logic
             console.log('Edit item:', itemId);
         }
 
         function deleteItem(itemId) {
             if (confirm('Yakin ingin menghapus item ini?')) {
-                // Implement delete item logic
                 console.log('Delete item:', itemId);
             }
         }
     </script>
-@endpush
+    @endpush
+</x-layouts.admin>

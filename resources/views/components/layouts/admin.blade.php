@@ -195,8 +195,8 @@
                     <!-- Divider: Settings -->
                     <li class="menu-title" x-show="sidebarOpen"><span>Pengaturan</span></li>
                     <li>
-                        <a href="{{ route('admin.activity-logs.index') }}"
-                            class="{{ request()->routeIs('admin.activity-logs.*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.activity-logs') }}"
+                            class="{{ request()->routeIs('admin.activity-logs') ? 'active' : '' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />

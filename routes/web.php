@@ -98,14 +98,24 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::post('kpi-forms', [KpiFormController::class, 'store'])->name('kpi-forms.store');
     Route::get('kpi-forms/{template}/edit', [KpiFormController::class, 'edit'])->name('kpi-forms.edit');
     Route::put('kpi-forms/{template}', [KpiFormController::class, 'update'])->name('kpi-forms.update');
-    Route::post('kpi-forms/{template}/clone', [KpiFormController::class, 'clone'])->name('kpi-forms.clone');
+    Route::get('kpi-forms/{template}/clone', [KpiFormController::class, 'clone'])->name('kpi-forms.clone');
     Route::get('kpi-forms/{template}/versions', [KpiFormController::class, 'versions'])->name('kpi-forms.versions');
+    Route::delete('kpi-forms/{template}/versions/{version}', [KpiFormController::class, 'deleteVersion'])->name('kpi-forms.delete-version');
     Route::get('kpi-forms/{template}/builder', [KpiFormController::class, 'builder'])->name('kpi-forms.builder');
     Route::post('kpi-forms/{template}/builder', [KpiFormController::class, 'saveBuilder'])->name('kpi-forms.save-builder');
     Route::get('kpi-forms/{template}/preview', [KpiFormController::class, 'preview'])->name('kpi-forms.preview');
     Route::post('kpi-forms/{template}/publish', [KpiFormController::class, 'publish'])->name('kpi-forms.publish');
+    Route::patch('kpi-forms/versions/{version}/publish', [KpiFormController::class, 'publishVersion'])->name('kpi-forms.publish-version');
     Route::post('kpi-forms/{template}/new-version', [KpiFormController::class, 'createNewVersion'])->name('kpi-forms.new-version');
     Route::delete('kpi-forms/{template}', [KpiFormController::class, 'destroy'])->name('kpi-forms.destroy');
+    // KPI Form Builder - Section & Item Management
+    Route::post('kpi-forms/versions/{version}/sections', [KpiFormController::class, 'addSection'])->name('kpi-forms.add-section');
+    Route::put('kpi-forms/sections/{section}', [KpiFormController::class, 'updateSection'])->name('kpi-forms.update-section');
+    Route::delete('kpi-forms/sections/{section}', [KpiFormController::class, 'deleteSection'])->name('kpi-forms.delete-section');
+    Route::post('kpi-forms/versions/{version}/items', [KpiFormController::class, 'addItem'])->name('kpi-forms.add-item');
+    Route::get('kpi-forms/items/{item}', [KpiFormController::class, 'showItem'])->name('kpi-forms.show-item');
+    Route::put('kpi-forms/items/{item}', [KpiFormController::class, 'updateItem'])->name('kpi-forms.update-item');
+    Route::delete('kpi-forms/items/{item}', [KpiFormController::class, 'deleteItem'])->name('kpi-forms.delete-item');
 
     // Teachers
     Route::get('teachers', [TeacherController::class, 'index'])->name('teachers.index');
@@ -127,7 +137,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('results/{result}', [ResultController::class, 'show'])->name('results.show');
 
     // Activity Logs
-    Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
+    Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
 
     // Placeholder routes for views
     // Scoring Scales

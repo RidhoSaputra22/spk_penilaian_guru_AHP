@@ -110,3 +110,6 @@
 
 }
 
+dialog {
+    overflow: visible;
+}

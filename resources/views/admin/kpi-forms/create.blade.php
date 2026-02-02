@@ -1,131 +1,114 @@
-@extends('layouts.admin')
+<x-layouts.admin>
+    <x-slot:breadcrumbs>
+        <li><a href="{{ route('admin.kpi-forms.index') }}">Template Form KPI</a></li>
+        <li>Buat Template Baru</li>
+    </x-slot:breadcrumbs>
 
-@section('title', 'Create KPI Form')
+    <x-slot:header>
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold">Buat Template Form KPI</h1>
+                <p class="text-base-content/60">Buat template form penilaian KPI baru</p>
+            </div>
+            <x-ui.button type="ghost" href="{{ route('admin.kpi-forms.index') }}">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Kembali
+            </x-ui.button>
+        </div>
+    </x-slot:header>
 
-@section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Create New KPI Form</h3>
-                    <div class="card-tools">
-                        <a href="{{ route('admin.kpi-forms.index') }}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to List
-                        </a>
-                    </div>
-                </div>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2">
+            <x-ui.card>
+                @if($errors->any())
+                <x-ui.alert type="error" class="mb-6">
+                    <strong>Terjadi kesalahan:</strong>
+                    <ul class="mt-2 list-disc list-inside">
+                        @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </x-ui.alert>
+                @endif
 
-                <form action="{{ route('admin.kpi-forms.store') }}" method="POST">
+                <form method="POST" action="{{ route('admin.kpi-forms.store') }}" class="space-y-6">
                     @csrf
-                    <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <div class="form-group">
-                                    <label for="title" class="required">Title</label>
-                                    <input type="text"
-                                           name="title"
-                                           id="title"
-                                           class="form-control @error('title') is-invalid @enderror"
-                                           value="{{ old('title') }}"
-                                           required>
-                                    @error('title')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
 
-                                <div class="form-group">
-                                    <label for="description">Description</label>
-                                    <textarea name="description"
-                                              id="description"
-                                              class="form-control @error('description') is-invalid @enderror"
-                                              rows="3">{{ old('description') }}</textarea>
-                                    @error('description')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label for="status" class="required">Status</label>
-                                    <select name="status"
-                                            id="status"
-                                            class="form-control @error('status') is-invalid @enderror"
-                                            required>
-                                        <option value="">Select Status</option>
-                                        <option value="draft" {{ old('status') === 'draft' ? 'selected' : '' }}>Draft</option>
-                                        <option value="published" {{ old('status') === 'published' ? 'selected' : '' }}>Published</option>
-                                        <option value="archived" {{ old('status') === 'archived' ? 'selected' : '' }}>Archived</option>
-                                    </select>
-                                    @error('status')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="version">Version</label>
-                                    <input type="text"
-                                           name="version"
-                                           id="version"
-                                           class="form-control @error('version') is-invalid @enderror"
-                                           value="{{ old('version', '1.0') }}">
-                                    @error('version')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="is_active">Active</label>
-                                    <div class="custom-control custom-switch">
-                                        <input type="checkbox"
-                                               class="custom-control-input"
-                                               id="is_active"
-                                               name="is_active"
-                                               value="1"
-                                               {{ old('is_active') ? 'checked' : '' }}>
-                                        <label class="custom-control-label" for="is_active">Active</label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="row">
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <i class="fas fa-info-circle"></i>
-                                    After creating the form template, you can use the Form Builder to add sections and items.
-                                </div>
-                            </div>
+                    <!-- Basic Information -->
+                    <div class="border-b border-base-200 pb-6">
+                        <h3 class="text-lg font-medium mb-4">Informasi Dasar</h3>
+                        <div class="space-y-4">
+                            <x-ui.input name="name" label="Nama Template"
+                                placeholder="Contoh: Form Penilaian Kinerja Guru Semester 1" value="{{ old('name') }}"
+                                required />
+                            <x-ui.textarea name="description" label="Deskripsi" rows="3"
+                                placeholder="Deskripsi singkat tentang template form ini..."
+                                value="{{ old('description') }}" />
                         </div>
                     </div>
 
-                    <div class="card-footer">
-                        <div class="row">
-                            <div class="col-6">
-                                <a href="{{ route('admin.kpi-forms.index') }}" class="btn btn-secondary">
-                                    <i class="fas fa-times"></i> Cancel
-                                </a>
-                            </div>
-                            <div class="col-6 text-right">
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="fas fa-save"></i> Create Form Template
-                                </button>
-                            </div>
+                    <!-- Version Settings -->
+                    <div class="border-b border-base-200 pb-6">
+                        <h3 class="text-lg font-medium mb-4">Pengaturan Versi</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <x-ui.select name="status" label="Status" :options="[
+                                'draft' => 'Draft',
+                                'published' => 'Published',
+                            ]" selected="{{ old('status', 'draft') }}" required />
+                            <x-ui.input name="version" label="Versi" placeholder="1.0"
+                                value="{{ old('version', '1.0') }}" />
                         </div>
+                    </div>
+
+
+
+                    <x-ui.alert type="info" class="mb-6">
+
+                        <span>Setelah membuat template, Anda dapat menggunakan <strong>Form Builder</strong> untuk
+                            menambahkan seksi dan item penilaian.</span>
+                    </x-ui.alert>
+
+                    <div class="flex justify-end gap-3 pt-4 border-t border-base-200">
+                        <x-ui.button type="ghost" href="{{ route('admin.kpi-forms.index') }}">Batal</x-ui.button>
+                        <x-ui.button type="primary" :isSubmit="true">Buat Template</x-ui.button>
                     </div>
                 </form>
-            </div>
+            </x-ui.card>
+        </div>
+
+        <div class="lg:col-span-1">
+            <x-ui.card title="Panduan">
+                <div class="space-y-4">
+                    <div class="bg-info/10 p-3 rounded-lg">
+                        <p class="text-sm font-medium text-info mb-2">Tentang Template</p>
+                        <p class="text-sm text-base-content/70">
+                            Template Form KPI adalah struktur dasar form penilaian yang dapat digunakan berulang kali
+                            untuk periode penilaian yang berbeda.
+                        </p>
+                    </div>
+
+                    <div class="bg-warning/10 p-3 rounded-lg">
+                        <p class="text-sm font-medium text-warning mb-2">Status Template</p>
+                        <ul class="text-sm space-y-1 text-base-content/70">
+                            <li>• <strong>Draft:</strong> Masih dalam pengembangan</li>
+                            <li>• <strong>Published:</strong> Siap digunakan</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-success/10 p-3 rounded-lg">
+                        <p class="text-sm font-medium text-success mb-2">Langkah Selanjutnya</p>
+                        <ol class="text-sm space-y-1 text-base-content/70 list-decimal list-inside">
+                            <li>Buat template dasar</li>
+                            <li>Gunakan Form Builder</li>
+                            <li>Tambahkan seksi dan item</li>
+                            <li>Publish template</li>
+                        </ol>
+                    </div>
+                </div>
+            </x-ui.card>
         </div>
     </div>
-</div>
-
-@push('styles')
-<style>
-.required::after {
-    content: " *";
-    color: red;
-}
-</style>
-@endpush
-@endsection
+</x-layouts.admin>
