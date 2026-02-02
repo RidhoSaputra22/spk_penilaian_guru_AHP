@@ -130,25 +130,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 
     // Placeholder routes for views
-    Route::get('scoring-scales', function () {
-        return view('admin.scoring-scales.index');
-    })->name('scoring-scales.index');
-
-    Route::get('scoring-scales/create', function () {
-        return view('admin.scoring-scales.create');
-    })->name('scoring-scales.create');
-
-    Route::get('scoring-scales/{scale}/edit', function () {
-        return view('admin.scoring-scales.edit');
-    })->name('scoring-scales.edit');
-
-    Route::get('scoring-scales/{scale}', function () {
-        return view('admin.scoring-scales.show');
-    })->name('scoring-scales.show');
-
-    Route::delete('scoring-scales/{scale}', function () {
-        return redirect()->route('admin.scoring-scales.index')->with('success', 'Scoring scale deleted');
-    })->name('scoring-scales.destroy');
+    // Scoring Scales
+    Route::resource('scoring-scales', \App\Http\Controllers\Admin\ScoringScaleController::class);
 
     Route::get('kpi-assignments', function () {
         return view('admin.kpi-assignments.index');
