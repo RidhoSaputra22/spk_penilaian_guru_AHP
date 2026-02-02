@@ -4,7 +4,7 @@ applyTo: '**'
 Admin / Operator
 User & Access
 • Create / activate / deactivate accounts (Admin, Assessor, Teacher)
-• Reset passwords
+
 Master Data
 • Manage teacher data (identity, subject, status)
 • Manage assessor/team data

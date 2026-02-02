@@ -172,10 +172,10 @@
                             </td>
                             @endif
                             <td>
-                                @if($teacher->user?->deactivated_at)
-                                    <span class="badge badge-error badge-sm">Nonaktif</span>
-                                @else
+                                @if($teacher->user?->status === 'active')
                                     <span class="badge badge-success badge-sm">Aktif</span>
+                                @else
+                                    <span class="badge badge-error badge-sm">Nonaktif</span>
                                 @endif
                             </td>
                             <td class="text-right">

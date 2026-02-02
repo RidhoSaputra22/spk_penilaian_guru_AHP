@@ -44,9 +44,9 @@ class TeacherController extends Controller
         if ($request->filled('status')) {
             $query->whereHas('user', function($q) use ($request) {
                 if ($request->status === 'active') {
-                    $q->whereNull('users.deactivated_at');
+                    $q->where('users.status', 'active');
                 } else {
-                    $q->whereNotNull('users.deactivated_at');
+                    $q->where('users.status', '!=', 'active');
                 }
             });
         }

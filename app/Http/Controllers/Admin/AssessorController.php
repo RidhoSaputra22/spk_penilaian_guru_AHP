@@ -38,7 +38,7 @@ class AssessorController extends Controller
 
         // Get active period
         $activePeriod = AssessmentPeriod::where('institution_id', $institution?->id)
-            ->where('status', 'open')
+            ->where('status', AssessmentPeriodStatus::Open)
             ->first();
 
         // Add assessment stats

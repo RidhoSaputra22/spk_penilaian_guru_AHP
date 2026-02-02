@@ -62,7 +62,9 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     // Period Management
     Route::resource('periods', PeriodController::class);
     Route::post('periods/{period}/status', [PeriodController::class, 'updateStatus'])->name('periods.update-status');
+    Route::patch('periods/{period}/open', [PeriodController::class, 'open'])->name('periods.open');
     Route::patch('periods/{period}/close', [PeriodController::class, 'close'])->name('periods.close');
+    Route::patch('periods/{period}/archive', [PeriodController::class, 'archive'])->name('periods.archive');
 
     // Criteria Management
     Route::get('criteria', [CriteriaController::class, 'index'])->name('criteria.index');
@@ -128,9 +130,41 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
         return view('admin.scoring-scales.index');
     })->name('scoring-scales.index');
 
+    Route::get('scoring-scales/create', function () {
+        return view('admin.scoring-scales.create');
+    })->name('scoring-scales.create');
+
+    Route::get('scoring-scales/{scale}/edit', function () {
+        return view('admin.scoring-scales.edit');
+    })->name('scoring-scales.edit');
+
+    Route::get('scoring-scales/{scale}', function () {
+        return view('admin.scoring-scales.show');
+    })->name('scoring-scales.show');
+
+    Route::delete('scoring-scales/{scale}', function () {
+        return redirect()->route('admin.scoring-scales.index')->with('success', 'Scoring scale deleted');
+    })->name('scoring-scales.destroy');
+
     Route::get('kpi-assignments', function () {
         return view('admin.kpi-assignments.index');
     })->name('kpi-assignments.index');
+
+    Route::get('kpi-assignments/create', function () {
+        return view('admin.kpi-assignments.create');
+    })->name('kpi-assignments.create');
+
+    Route::get('kpi-assignments/{assignment}/edit', function () {
+        return view('admin.kpi-assignments.edit');
+    })->name('kpi-assignments.edit');
+
+    Route::get('kpi-assignments/{assignment}', function () {
+        return view('admin.kpi-assignments.show');
+    })->name('kpi-assignments.show');
+
+    Route::delete('kpi-assignments/{assignment}', function () {
+        return redirect()->route('admin.kpi-assignments.index')->with('success', 'Assignment deleted');
+    })->name('kpi-assignments.destroy');
 
     Route::get('reports', function () {
         return view('admin.reports.index');

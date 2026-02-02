@@ -26,7 +26,7 @@ class LoginController extends Controller
             $user = Auth::user();
 
             // Check if user is deactivated or inactive
-            if ($user->deactivated_at || $user->status === 'inactive') {
+            if ($user->status !== 'active') {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();

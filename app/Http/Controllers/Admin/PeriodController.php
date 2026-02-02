@@ -3,11 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\AhpModel;
+use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
 use App\Models\CriteriaSet;
-use App\Models\KpiFormTemplate;
-use App\Models\Assessment;
-use App\Models\ActivityLog;
+use App\Models\KpiFormAssignment;
+use App\Models\KpiFormVersion;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -32,23 +35,63 @@ class PeriodController extends Controller
 
         $periods = $query->latest('scoring_open_at')->paginate(10)->withQueryString();
 
-        // Stats
-        $stats = [
-            'total' => AssessmentPeriod::where('institution_id', $institution?->id)->count(),
+        // Status counts for stats cards
+        $statusCounts = [
+            'draft' => AssessmentPeriod::where('institution_id', $institution?->id)->where('status', 'draft')->count(),
             'open' => AssessmentPeriod::where('institution_id', $institution?->id)->where('status', 'open')->count(),
             'closed' => AssessmentPeriod::where('institution_id', $institution?->id)->where('status', 'closed')->count(),
-            'draft' => AssessmentPeriod::where('institution_id', $institution?->id)->where('status', 'draft')->count(),
+            'archived' => AssessmentPeriod::where('institution_id', $institution?->id)->where('status', 'archived')->count(),
         ];
 
-        return view('admin.periods.index', compact('periods', 'stats'));
+        // Academic years for filter dropdown
+        $academicYears = AssessmentPeriod::where('institution_id', $institution?->id)
+            ->whereNotNull('academic_year')
+            ->distinct()
+            ->pluck('academic_year', 'academic_year')
+            ->toArray();
+
+        // Legacy stats for compatibility
+        $stats = [
+            'total' => AssessmentPeriod::where('institution_id', $institution?->id)->count(),
+            'open' => $statusCounts['open'],
+            'closed' => $statusCounts['closed'],
+            'draft' => $statusCounts['draft'],
+        ];
+
+        return view('admin.periods.index', compact('periods', 'stats', 'statusCounts', 'academicYears'));
     }
 
     public function create()
     {
-        $criteriaSets = CriteriaSet::where('institution_id', auth()->user()->institution_id)->get();
-        $kpiTemplates = KpiFormTemplate::where('institution_id', auth()->user()->institution_id)->get();
+        // Get criteria sets and format for select component
+        $criteriaSets = CriteriaSet::where('institution_id', auth()->user()->institution_id)
+            ->get()
+            ->pluck('name', 'id')
+            ->toArray();
 
-        return view('admin.periods.create', compact('criteriaSets', 'kpiTemplates'));
+        // If no criteria sets available, provide empty array
+        if (empty($criteriaSets)) {
+            $criteriaSets = [];
+        }
+
+        // Get KPI form versions (published) and format for select component
+        $kpiForms = KpiFormVersion::with('template')
+            ->whereHas('template', function ($q) {
+                $q->where('institution_id', auth()->user()->institution_id);
+            })
+            ->where('status', 'published')
+            ->get()
+            ->mapWithKeys(function ($version) {
+                return [$version->id => $version->template->name.' v'.$version->version];
+            })
+            ->toArray();
+
+        // If no form versions available, provide empty array
+        if (empty($kpiForms)) {
+            $kpiForms = [];
+        }
+
+        return view('admin.periods.create', compact('criteriaSets', 'kpiForms'));
     }
 
     public function store(Request $request)
@@ -57,17 +100,56 @@ class PeriodController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'academic_year' => ['nullable', 'string', 'max:20'],
             'semester' => ['nullable', 'string', 'max:20'],
-            'scoring_open_at' => ['nullable', 'date'],
-            'scoring_close_at' => ['nullable', 'date', 'after:scoring_open_at'],
+            'scoring_open_at' => ['nullable', 'date_format:Y-m-d'],
+            'scoring_close_at' => ['nullable', 'date_format:Y-m-d', 'after:scoring_open_at'],
+            'criteria_set_id' => ['nullable', 'exists:criteria_sets,id'],
+            'kpi_form_version_id' => ['nullable', 'exists:kpi_form_versions,id'],
             'description' => ['nullable', 'string'],
-            'status' => ['required', 'in:draft,open,closed'],
         ]);
+
+        // Set default status to 'draft' for new periods
+        $validated['status'] = 'draft';
+
+        // Process date fields to proper datetime format
+        if (! empty($validated['scoring_open_at'])) {
+            $validated['scoring_open_at'] = Carbon::parse($validated['scoring_open_at'])->startOfDay();
+        }
+
+        if (! empty($validated['scoring_close_at'])) {
+            $validated['scoring_close_at'] = Carbon::parse($validated['scoring_close_at'])->endOfDay();
+        }
+
+        // Separate the validated data for assessment period
+        $periodData = collect($validated)->except(['criteria_set_id', 'kpi_form_version_id'])->toArray();
 
         $period = AssessmentPeriod::create([
             'id' => Str::ulid(),
             'institution_id' => auth()->user()->institution_id,
-            ...$validated,
+            ...$periodData,
         ]);
+
+        // Create AHP Model if criteria_set_id is provided
+        if (! empty($validated['criteria_set_id'])) {
+            AhpModel::create([
+                'id' => Str::ulid(),
+                'assessment_period_id' => $period->id,
+                'criteria_set_id' => $validated['criteria_set_id'],
+                'status' => 'draft',
+                'created_by' => auth()->id(),
+            ]);
+        }
+
+        // Create KPI Form Assignment if kpi_form_version_id is provided
+        if (! empty($validated['kpi_form_version_id'])) {
+            KpiFormAssignment::create([
+                'id' => Str::ulid(),
+                'assessment_period_id' => $period->id,
+                'form_version_id' => $validated['kpi_form_version_id'],
+                'status' => 'draft',
+                'assigned_at' => now(),
+                'assigned_by' => auth()->id(),
+            ]);
+        }
 
         // Log activity
         ActivityLog::create([
@@ -87,7 +169,12 @@ class PeriodController extends Controller
 
     public function show(AssessmentPeriod $period)
     {
-        $period->load(['ahpModel.criteriaSet.nodes', 'ahpModel.weights']);
+        // Load all necessary relationships
+        $period->load([
+            'ahpModel.criteriaSet.nodes',
+            'ahpModel.weights',
+            'assignments.formVersion.template',
+        ]);
 
         // Get assessment stats
         $assessmentStats = Assessment::where('assessment_period_id', $period->id)
@@ -101,10 +188,38 @@ class PeriodController extends Controller
 
     public function edit(AssessmentPeriod $period)
     {
-        $criteriaSets = CriteriaSet::where('institution_id', auth()->user()->institution_id)->get();
-        $kpiTemplates = KpiFormTemplate::where('institution_id', auth()->user()->institution_id)->get();
+        // Get criteria sets and format for select component
+        $criteriaSets = CriteriaSet::where('institution_id', auth()->user()->institution_id)
+            ->get()
+            ->pluck('name', 'id')
+            ->toArray();
 
-        return view('admin.periods.edit', compact('period', 'criteriaSets', 'kpiTemplates'));
+        // If no criteria sets available, provide empty array
+        if (empty($criteriaSets)) {
+            $criteriaSets = [];
+        }
+
+        // Get KPI form versions (published) and format for select component
+        $kpiForms = KpiFormVersion::with('template')
+            ->whereHas('template', function ($q) {
+                $q->where('institution_id', auth()->user()->institution_id);
+            })
+            ->where('status', 'published')
+            ->get()
+            ->mapWithKeys(function ($version) {
+                return [$version->id => $version->template->name.' v'.$version->version];
+            })
+            ->toArray();
+
+        // If no form versions available, provide empty array
+        if (empty($kpiForms)) {
+            $kpiForms = [];
+        }
+
+        // Load period relationships to get current selected values
+        $period->load(['ahpModel', 'assignments.formVersion']);
+
+        return view('admin.periods.edit', compact('period', 'criteriaSets', 'kpiForms'));
     }
 
     public function update(Request $request, AssessmentPeriod $period)
@@ -113,13 +228,62 @@ class PeriodController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'academic_year' => ['nullable', 'string', 'max:20'],
             'semester' => ['nullable', 'string', 'max:20'],
-            'scoring_open_at' => ['nullable', 'date'],
-            'scoring_close_at' => ['nullable', 'date', 'after:scoring_open_at'],
+            'scoring_open_at' => ['nullable', 'date_format:Y-m-d'],
+            'scoring_close_at' => ['nullable', 'date_format:Y-m-d', 'after:scoring_open_at'],
+            'criteria_set_id' => ['nullable', 'exists:criteria_sets,id'],
+            'kpi_form_version_id' => ['nullable', 'exists:kpi_form_versions,id'],
             'description' => ['nullable', 'string'],
-            'status' => ['required', 'in:draft,open,closed'],
         ]);
 
-        $period->update($validated);
+        // Process date fields to proper datetime format
+        if (! empty($validated['scoring_open_at'])) {
+            $validated['scoring_open_at'] = Carbon::parse($validated['scoring_open_at'])->startOfDay();
+        }
+
+        if (! empty($validated['scoring_close_at'])) {
+            $validated['scoring_close_at'] = Carbon::parse($validated['scoring_close_at'])->endOfDay();
+        }
+
+        // Separate period data from relational data
+        $periodData = collect($validated)->except(['criteria_set_id', 'kpi_form_version_id'])->toArray();
+
+        // Store description in meta if provided
+        if (isset($validated['description'])) {
+            $meta = $period->meta ?? [];
+            $meta['description'] = $validated['description'];
+            $periodData['meta'] = $meta;
+            unset($periodData['description']);
+        }
+
+        $period->update($periodData);
+
+        // Update AHP Model if criteria_set_id is provided
+        if (isset($validated['criteria_set_id'])) {
+            $period->ahpModel()->updateOrCreate(
+                ['assessment_period_id' => $period->id],
+                [
+                    'criteria_set_id' => $validated['criteria_set_id'],
+                    'status' => $period->ahpModel?->status ?? 'draft',
+                    'created_by' => $period->ahpModel?->created_by ?? auth()->id(),
+                ]
+            );
+        }
+
+        // Update KPI Form Assignment if kpi_form_version_id is provided
+        if (isset($validated['kpi_form_version_id'])) {
+            // Remove existing assignments
+            $period->assignments()->delete();
+
+            // Create new assignment
+            KpiFormAssignment::create([
+                'id' => Str::ulid(),
+                'assessment_period_id' => $period->id,
+                'form_version_id' => $validated['kpi_form_version_id'],
+                'status' => 'draft',
+                'assigned_at' => now(),
+                'assigned_by' => auth()->id(),
+            ]);
+        }
 
         // Log activity
         ActivityLog::create([
@@ -187,6 +351,34 @@ class PeriodController extends Controller
         return back()->with('success', 'Status periode berhasil diperbarui.');
     }
 
+    public function open(AssessmentPeriod $period)
+    {
+        // Validate that period can be opened
+        if ($period->status !== 'draft') {
+            return back()->with('error', 'Periode ini tidak dapat dibuka karena status bukan draft.');
+        }
+
+        // Update period status to open and set open date
+        $period->update([
+            'status' => 'open',
+            'scoring_open_at' => $period->scoring_open_at ?? now(),
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'open_period',
+            'entity_type' => AssessmentPeriod::class,
+            'entity_id' => $period->id,
+            'description' => "Opened assessment period: {$period->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return back()->with('success', 'Periode penilaian berhasil dibuka.');
+    }
+
     public function close(AssessmentPeriod $period)
     {
         // Validate that period can be closed
@@ -213,5 +405,32 @@ class PeriodController extends Controller
         ]);
 
         return back()->with('success', 'Periode penilaian berhasil ditutup.');
+    }
+
+    public function archive(AssessmentPeriod $period)
+    {
+        // Validate that period can be archived
+        if ($period->status !== 'closed') {
+            return back()->with('error', 'Periode ini tidak dapat diarsipkan karena status bukan closed.');
+        }
+
+        // Update period status to archived
+        $period->update([
+            'status' => 'archived',
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'archive_period',
+            'entity_type' => AssessmentPeriod::class,
+            'entity_id' => $period->id,
+            'description' => "Archived assessment period: {$period->name}",
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+        ]);
+
+        return back()->with('success', 'Periode penilaian berhasil diarsipkan.');
     }
 }
