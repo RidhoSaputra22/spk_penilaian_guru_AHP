@@ -137,7 +137,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('results/{result}', [ResultController::class, 'show'])->name('results.show');
 
     // Activity Logs
-    Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs');
+    Route::get('activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 
     // Placeholder routes for views
     // Scoring Scales
