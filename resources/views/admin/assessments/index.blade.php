@@ -20,8 +20,8 @@
         <!-- Period Selection -->
         <div class="card bg-base-100 shadow-sm">
             <div class="card-body">
-                <form action="{{ route('admin.assessments.index') }}" method="GET" class="flex flex-wrap gap-4">
-                    <div class="form-control w-64">
+                <form action="{{ route('admin.assessments.index') }}" method="GET" class="flex  gap-4">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text">Periode</span>
                         </label>
@@ -41,7 +41,7 @@
                         <input type="text" name="search" value="{{ request('search') }}" placeholder="Nama guru..."
                             class="input input-bordered" />
                     </div>
-                    <div class="form-control w-40">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text">Status</span>
                         </label>
@@ -55,7 +55,7 @@
                             </option>
                         </select>
                     </div>
-                    <div class="form-control">
+                    <div class="form-control flex-1">
                         <label class="label">
                             <span class="label-text">&nbsp;</span>
                         </label>

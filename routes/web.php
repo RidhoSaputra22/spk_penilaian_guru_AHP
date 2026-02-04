@@ -157,15 +157,23 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('reports/export-progress', [\App\Http\Controllers\Admin\ReportController::class, 'exportProgress'])->name('reports.export-progress');
     Route::get('reports/export-ahp', [\App\Http\Controllers\Admin\ReportController::class, 'exportAhp'])->name('reports.export-ahp');
 
-    // Profile (placeholder)
-    Route::get('profile', function () {
-        return view('admin.profile.edit');
-    })->name('profile.edit');
+    // Profile
+    Route::get('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'update'])->name('profile.update');
+    Route::put('profile/password', [\App\Http\Controllers\Admin\ProfileController::class, 'updatePassword'])->name('profile.update-password');
+    Route::delete('profile', [\App\Http\Controllers\Admin\ProfileController::class, 'destroy'])->name('profile.delete');
 
-    // Settings (placeholder)
-    Route::get('settings', function () {
-        return view('admin.settings.index');
-    })->name('settings.index');
+    // Settings
+    Route::get('settings', [\App\Http\Controllers\Admin\SettingController::class, 'index'])->name('settings.index');
+    Route::put('settings/institution', [\App\Http\Controllers\Admin\SettingController::class, 'updateInstitution'])->name('settings.update-institution');
+    Route::put('settings/scoring-scale', [\App\Http\Controllers\Admin\SettingController::class, 'updateScoringScale'])->name('settings.update-scoring-scale');
+    Route::post('settings/teacher-groups', [\App\Http\Controllers\Admin\SettingController::class, 'storeTeacherGroup'])->name('settings.store-teacher-group');
+    Route::put('settings/teacher-groups/{teacherGroup}', [\App\Http\Controllers\Admin\SettingController::class, 'updateTeacherGroup'])->name('settings.update-teacher-group');
+    Route::delete('settings/teacher-groups/{teacherGroup}', [\App\Http\Controllers\Admin\SettingController::class, 'deleteTeacherGroup'])->name('settings.delete-teacher-group');
+    Route::put('settings/ahp', [\App\Http\Controllers\Admin\SettingController::class, 'updateAhpSettings'])->name('settings.update-ahp');
+    Route::put('settings/email', [\App\Http\Controllers\Admin\SettingController::class, 'updateEmailSettings'])->name('settings.update-email');
+    Route::put('settings/notifications', [\App\Http\Controllers\Admin\SettingController::class, 'updateNotificationSettings'])->name('settings.update-notifications');
+    Route::post('settings/backup', [\App\Http\Controllers\Admin\SettingController::class, 'createBackup'])->name('settings.create-backup');
 });
 
 /*

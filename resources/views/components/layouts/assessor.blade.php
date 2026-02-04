@@ -27,7 +27,8 @@
             <div class="flex items-center justify-between h-16 px-4 border-b border-base-200">
                 <div class="flex items-center gap-3" x-show="sidebarOpen">
                     <div class="w-10 h-10 rounded-lg bg-secondary flex items-center justify-center">
-                        <svg class="w-6 h-6 text-secondary-content" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-6 h-6 text-secondary-content" fill="none" stroke="currentColor"
+                            viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                         </svg>
@@ -44,7 +45,7 @@
 
             <!-- Navigation -->
             <nav class="flex-1 overflow-y-auto py-4 px-2">
-                <ul class="menu menu-md gap-1">
+                <ul class="menu menu-md gap-1 w-full">
                     <!-- Dashboard -->
                     <li>
                         <a href="{{ route('assessor.dashboard') }}"
@@ -98,17 +99,7 @@
                 </ul>
             </nav>
 
-            <!-- Sidebar Footer - Collapse Button (Desktop only) -->
-            <div class="hidden lg:flex border-t border-base-200 p-4">
-                <button @click="sidebarOpen = !sidebarOpen" class="btn btn-ghost btn-sm w-full">
-                    <svg :class="{'rotate-180': !sidebarOpen}" class="w-5 h-5 transition-transform" fill="none"
-                        stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
-                    </svg>
-                    <span x-show="sidebarOpen">Collapse</span>
-                </button>
-            </div>
+
         </aside>
 
         <!-- Main Content -->
@@ -175,7 +166,8 @@
                             </label>
                             <ul tabindex="0"
                                 class="dropdown-content z-[1] menu p-2 shadow-lg bg-base-100 rounded-box w-52">
-                                <li class="menu-title"><span>{{ auth()->user()->email ?? 'assessor@example.com' }}</span>
+                                <li class="menu-title">
+                                    <span>{{ auth()->user()->email ?? 'assessor@example.com' }}</span>
                                 </li>
                                 <li><a href="{{ route('assessor.profile.edit') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -208,8 +200,10 @@
                 <!-- Flash Messages -->
                 @if(session('success'))
                 <div class="alert alert-success mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>{{ session('success') }}</span>
                 </div>
@@ -217,8 +211,10 @@
 
                 @if(session('error'))
                 <div class="alert alert-error mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <span>{{ session('error') }}</span>
                 </div>
@@ -226,8 +222,10 @@
 
                 @if(session('warning'))
                 <div class="alert alert-warning mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                     </svg>
                     <span>{{ session('warning') }}</span>
                 </div>
@@ -235,8 +233,10 @@
 
                 @if(session('info'))
                 <div class="alert alert-info mb-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                        class="stroke-current shrink-0 w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     <span>{{ session('info') }}</span>
                 </div>

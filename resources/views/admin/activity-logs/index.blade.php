@@ -49,9 +49,13 @@
             </div>
         </div>
 
-        <!-- Timeline -->
+
+
         <div class="card bg-base-100 shadow-sm">
+
             <div class="card-body">
+                <!-- Pagination -->
+
                 @forelse($logs as $log)
                 <div
                     class="flex gap-4 pb-6 {{ !$loop->last ? 'border-b border-base-200' : '' }} {{ !$loop->first ? 'pt-6' : '' }}">
