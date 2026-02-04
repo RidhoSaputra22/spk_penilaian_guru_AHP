@@ -107,7 +107,8 @@
                             <td>
                                 <div class="flex items-center gap-3">
                                     <div class="avatar placeholder">
-                                        <div class="bg-primary text-primary-content w-10 rounded-full">
+                                        <div
+                                            class="bg-primary text-primary-content w-10 rounded-full flex items-center justify-center">
                                             <span class="text-sm">{{ strtoupper(substr($user->name, 0, 2)) }}</span>
                                         </div>
                                     </div>

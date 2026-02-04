@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Assessor;
 
-use App\Enums\AssessmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
@@ -18,13 +17,13 @@ class ResultController extends Controller
         $user = auth()->user();
         $assessorProfile = $user->assessorProfile;
 
-        if (!$assessorProfile) {
+        if (! $assessorProfile) {
             return redirect()->route('assessor.dashboard')
                 ->with('error', 'Profil penilai tidak ditemukan.');
         }
 
         $query = Assessment::where('assessor_profile_id', $assessorProfile->id)
-            ->whereIn('status', ['submitted', AssessmentStatus::Finalized])
+            ->whereIn('status', ['submitted', 'finalized'])
             ->with(['teacher.user', 'period', 'assignment.formVersion.template']);
 
         // Filter by period
@@ -61,7 +60,7 @@ class ResultController extends Controller
             'assignment.formVersion.sections.items.scale.options',
             'assignment.formVersion.sections.items.options',
             'itemValues',
-            'statusLogs.user',
+            'statusLogs.changer',
         ]);
 
         $valuesMap = $assessment->itemValues->keyBy('form_item_id');

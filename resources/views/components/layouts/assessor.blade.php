@@ -130,7 +130,7 @@
                     <!-- Right: Theme, User -->
                     <div class="flex items-center gap-2">
                         <!-- Theme Switcher -->
-                        <div class="dropdown dropdown-end">
+                        <!-- <div class="dropdown dropdown-end">
                             <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -148,13 +148,14 @@
                                 <li><a onclick="document.documentElement.setAttribute('data-theme', 'emerald')">💚
                                         Emerald</a></li>
                             </ul>
-                        </div>
+                        </div> -->
 
                         <!-- User Menu -->
                         <div class="dropdown dropdown-end">
                             <label tabindex="0" class="btn btn-ghost btn-sm gap-2">
                                 <div class="avatar placeholder">
-                                    <div class="bg-secondary text-secondary-content rounded-full w-8">
+                                    <div
+                                        class="bg-secondary text-secondary-content rounded-full w-8 flex items-center justify-center">
                                         <span class="text-sm">{{ substr(auth()->user()->name ?? 'A', 0, 1) }}</span>
                                     </div>
                                 </div>
@@ -180,7 +181,8 @@
                                 <li>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
-                                        <button type="submit" class="w-full text-left text-error">
+                                        <button type="submit"
+                                            class="w-full text-left text-error flex items-center gap-2">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

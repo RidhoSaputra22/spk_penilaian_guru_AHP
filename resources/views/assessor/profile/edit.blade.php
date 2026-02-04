@@ -10,6 +10,8 @@
         <p class="text-base-content/70">Kelola informasi profil dan password akun Anda</p>
     </x-slot:header>
 
+
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Profile Information -->
         <x-ui.card title="Informasi Profil">
@@ -17,40 +19,23 @@
                 Perbarui informasi profil dan email akun Anda.
             </p>
 
-            <form action="{{ route('assessor.profile.update') }}" method="POST">
+            <form action="{{ route('assessor.profile.update') }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
 
-                <x-ui.input
-                    name="name"
-                    label="Nama Lengkap"
-                    :value="$user->name"
-                    :error="$errors->first('name')"
-                    required
-                />
+                <x-ui.input name="name" label="Nama Lengkap" value="{{ old('name', $user->name) }}" required />
 
-                <x-ui.input
-                    name="email"
-                    label="Email"
-                    type="email"
-                    :value="$user->email"
-                    disabled
-                    helpText="Email tidak dapat diubah"
-                />
+                <x-ui.input name="email" label="Email" type="email" value="{{ $user->email }}" disabled
+                    helpText="Email tidak dapat diubah" />
 
-                <x-ui.input
-                    name="title"
-                    label="Jabatan/Title"
-                    :value="$assessorProfile->title ?? ''"
-                    :error="$errors->first('title')"
-                    placeholder="Contoh: Kepala Sekolah, Wakil Kepala Sekolah"
-                />
+                <x-ui.input name="title" label="Jabatan/Title" value="{{ old('title', $assessorProfile->title ?? '') }}"
+                    placeholder="Contoh: Kepala Sekolah, Wakil Kepala Sekolah" />
 
-                <x-slot:actions>
-                    <x-ui.button type="primary">
+                <div class="flex justify-end pt-4">
+                    <x-ui.button type="primary" :isSubmit="true">
                         Simpan Perubahan
                     </x-ui.button>
-                </x-slot:actions>
+                </div>
             </form>
         </x-ui.card>
 
@@ -60,38 +45,21 @@
                 Pastikan akun Anda menggunakan password yang kuat untuk keamanan.
             </p>
 
-            <form action="{{ route('assessor.profile.update-password') }}" method="POST">
+            <form action="{{ route('assessor.profile.update-password') }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
 
-                <x-ui.input
-                    name="current_password"
-                    label="Password Saat Ini"
-                    type="password"
-                    :error="$errors->first('current_password')"
-                    required
-                />
+                <x-ui.input name="current_password" label="Password Saat Ini" type="password" required />
 
-                <x-ui.input
-                    name="password"
-                    label="Password Baru"
-                    type="password"
-                    :error="$errors->first('password')"
-                    required
-                />
+                <x-ui.input name="password" label="Password Baru" type="password" required />
 
-                <x-ui.input
-                    name="password_confirmation"
-                    label="Konfirmasi Password Baru"
-                    type="password"
-                    required
-                />
+                <x-ui.input name="password_confirmation" label="Konfirmasi Password Baru" type="password" required />
 
-                <x-slot:actions>
-                    <x-ui.button type="primary">
+                <div class="flex justify-end pt-4">
+                    <x-ui.button type="primary" :isSubmit="true">
                         Ubah Password
                     </x-ui.button>
-                </x-slot:actions>
+                </div>
             </form>
         </x-ui.card>
     </div>

@@ -5,8 +5,6 @@ namespace App\Http\Controllers\Assessor;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
-use App\Models\KpiFormAssignment;
-use Illuminate\Http\Request;
 
 class DashboardController extends Controller
 {
@@ -15,22 +13,18 @@ class DashboardController extends Controller
         $user = auth()->user();
         $assessorProfile = $user->assessorProfile;
 
-        if (!$assessorProfile) {
+        if (! $assessorProfile) {
             return redirect()->route('login')->with('error', 'Profil penilai tidak ditemukan.');
         }
 
         // Get active periods where assessor is assigned
         $activePeriods = AssessmentPeriod::where('status', 'open')
-            ->whereHas('assignments', function ($query) use ($assessorProfile) {
-                $query->whereHas('assessors', function ($q) use ($assessorProfile) {
-                    $q->where('assessor_profile_id', $assessorProfile->id);
-                });
+            ->where('institution_id', $user->institution_id)
+            ->whereHas('assignments.assessors', function ($query) use ($assessorProfile) {
+                $query->where('assessor_profiles.id', $assessorProfile->id);
             })
-            ->with(['assignments' => function ($query) use ($assessorProfile) {
-                $query->whereHas('assessors', function ($q) use ($assessorProfile) {
-                    $q->where('assessor_profile_id', $assessorProfile->id);
-                });
-            }])
+            ->with('assignments')
+            ->orderBy('scoring_close_at', 'desc')
             ->get();
 
         // Get pending assessments (draft or not started)

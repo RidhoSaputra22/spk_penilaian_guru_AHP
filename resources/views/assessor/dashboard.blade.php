@@ -109,7 +109,21 @@
                                 {{ $period->academic_year }} - Semester {{ $period->semester }}
                             </p>
                         </div>
-                        <x-ui.badge type="success" size="sm">Aktif</x-ui.badge>
+                        <x-ui.badge type="{{ match($period->status) {
+                            'open' => 'success',
+                            'closed' => 'error',
+                            'archived' => 'ghost',
+                            'draft' => 'warning',
+                            default => 'info',
+                        } }}" size="sm">
+                            {{ match($period->status) {
+                                'open' => 'Aktif',
+                                'closed' => 'Ditutup',
+                                'archived' => 'Arsip',
+                                'draft' => 'Draft',
+                                default => ucfirst($period->status),
+                            } }}
+                        </x-ui.badge>
                     </div>
                     @if($period->scoring_close_at)
                     <p class="text-xs text-base-content/50 mt-2">

@@ -135,7 +135,8 @@
                                 <td>
                                     <div class="flex items-center gap-3">
                                         <div class="avatar placeholder">
-                                            <div class="bg-primary/10 text-primary rounded-full w-10">
+                                            <div
+                                                class="bg-primary/10 text-primary rounded-full w-10 flex items-center justify-center">
                                                 <span
                                                     class="text-sm">{{ substr($teacher->user->name ?? '', 0, 2) }}</span>
                                             </div>

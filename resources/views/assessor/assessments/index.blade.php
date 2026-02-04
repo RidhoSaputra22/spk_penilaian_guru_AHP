@@ -36,12 +36,16 @@
                                 {{ $period->academic_year }} - Semester {{ $period->semester }}
                             </p>
                         </div>
-                        @if($period->status === 'active')
+                        @if($period->status === 'open')
                             <x-ui.badge type="success" size="sm">Aktif</x-ui.badge>
                         @elseif($period->status === 'closed')
-                            <x-ui.badge type="ghost" size="sm">Ditutup</x-ui.badge>
+                            <x-ui.badge type="error" size="sm">Ditutup</x-ui.badge>
+                        @elseif($period->status === 'archived')
+                            <x-ui.badge type="ghost" size="sm">Arsip</x-ui.badge>
+                        @elseif($period->status === 'draft')
+                            <x-ui.badge type="warning" size="sm">Draft</x-ui.badge>
                         @else
-                            <x-ui.badge type="warning" size="sm">{{ ucfirst($period->status) }}</x-ui.badge>
+                            <x-ui.badge type="info" size="sm">{{ ucfirst($period->status) }}</x-ui.badge>
                         @endif
                     </div>
 

@@ -34,6 +34,11 @@ $inputId = $name . '_' . uniqid();
             @if($required)
             <span class="text-error">*</span>
             @endif
+            @if($helpText && !$error)
+            <label class="label">
+                <span class="text-sm font-light label-text-alt text-base-content/70">- {{ $helpText }}</span>
+            </label>
+            @endif
         </span>
     </label>
     @endif
@@ -67,11 +72,7 @@ $inputId = $name . '_' . uniqid();
         {{ $required ? 'required' : '' }} />
     @endif
 
-    @if($helpText && !$error)
-    <label class="label">
-        <span class="label-text-alt text-base-content/70">{{ $helpText }}</span>
-    </label>
-    @endif
+
 
     @if($error)
     <label class="label">

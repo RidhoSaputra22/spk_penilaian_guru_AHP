@@ -54,28 +54,37 @@ class DemoAssignmentSeeder extends Seeder
                 ]
             );
 
-            // Avoid duplicates
-            if (KpiFormAssignment::where('assessment_period_id', $period->id)->where('form_version_id', $version->id)->exists()) {
-                return;
-            }
+            // Get or create assignment
+            $assignment = KpiFormAssignment::where('assessment_period_id', $period->id)
+                ->where('form_version_id', $version->id)
+                ->first();
 
-            $assignment = KpiFormAssignment::create([
-                'assessment_period_id' => $period->id,
-                'form_version_id' => $version->id,
-                'status' => 'active',
-                'assigned_at' => now(),
-                'locked_at' => null,
-                'assigned_by' => $admin->id,
-                'meta' => ['demo' => true],
-            ]);
+            if (!$assignment) {
+                $assignment = KpiFormAssignment::create([
+                    'assessment_period_id' => $period->id,
+                    'form_version_id' => $version->id,
+                    'status' => 'active',
+                    'assigned_at' => now(),
+                    'locked_at' => null,
+                    'assigned_by' => $admin->id,
+                    'meta' => ['demo' => true],
+                ]);
+            }
 
             $assessors = AssessorProfile::whereHas('user', fn ($q) => $q->where('institution_id', $institution->id))->get();
             $teachers  = TeacherProfile::whereHas('user', fn ($q) => $q->where('institution_id', $institution->id))->get();
             $groups    = TeacherGroup::where('institution_id', $institution->id)->get();
 
-            $assignment->assessors()->sync($assessors->pluck('id')->all());
-            $assignment->teachers()->sync($teachers->pluck('id')->all());
-            $assignment->teacherGroups()->sync($groups->pluck('id')->all());
+            // Always sync to ensure relationships are set
+            if ($assessors->isNotEmpty()) {
+                $assignment->assessors()->sync($assessors->pluck('id')->all());
+            }
+            if ($teachers->isNotEmpty()) {
+                $assignment->teachers()->sync($teachers->pluck('id')->all());
+            }
+            if ($groups->isNotEmpty()) {
+                $assignment->teacherGroups()->sync($groups->pluck('id')->all());
+            }
         });
     }
 }

@@ -149,7 +149,7 @@
                 @forelse($recentActivities ?? [] as $activity)
                 <div class="flex items-start gap-3">
                     <div class="avatar placeholder">
-                        <div class="bg-primary text-primary-content rounded-full w-10">
+                        <div class="bg-primary text-primary-content rounded-full w-10 flex items-center justify-center">
                             <span>{{ substr($activity->user?->name ?? 'S', 0, 1) }}</span>
                         </div>
                     </div>
@@ -208,7 +208,8 @@
                             <td>
                                 <div class="flex items-center gap-2">
                                     <div class="avatar placeholder">
-                                        <div class="bg-neutral text-neutral-content rounded-full w-8">
+                                        <div
+                                            class="bg-neutral text-neutral-content rounded-full w-8 flex items-center justify-center">
                                             <span
                                                 class="text-xs">{{ substr($teacher->teacher?->user?->name ?? 'G', 0, 1) }}</span>
                                         </div>
