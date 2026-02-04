@@ -19,10 +19,15 @@ class AhpController extends Controller
         $institution = auth()->user()->institution;
 
         // Get periods with AHP models
-        $periods = AssessmentPeriod::with(['ahpModel'])
+        $periodsCollection = AssessmentPeriod::with(['ahpModel'])
             ->where('institution_id', $institution?->id)
             ->latest('scoring_open_at')
             ->get();
+
+        // Format periods for select dropdown
+        $periods = $periodsCollection->mapWithKeys(fn($p) => [
+            $p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"
+        ]);
 
         // Get active period or selected period
         $selectedPeriod = null;
@@ -32,9 +37,9 @@ class AhpController extends Controller
         $weights = collect();
 
         if ($request->filled('period')) {
-            $selectedPeriod = $periods->firstWhere('id', $request->period);
+            $selectedPeriod = $periodsCollection->firstWhere('id', $request->period);
         } else {
-            $selectedPeriod = $periods->firstWhere('status', 'open') ?? $periods->first();
+            $selectedPeriod = $periodsCollection->firstWhere('status', 'open') ?? $periodsCollection->first();
         }
 
         if ($selectedPeriod) {
