@@ -113,3 +113,7 @@ This web app helps the madrasah do **teacher performance evaluation** in a struc
 * **Transparent results**: breakdown shows why a teacher gets a certain score.
 * **Efficient reporting**: ranking + PDF/Excel exports are generated automatically.
 
+JANGAN GUNAKAN JAVASCRIPT!!!!
+JANGAN GUNAKAN JAVASCRIPT!!!!
+JANGAN GUNAKAN JAVASCRIPT!!!!
+JANGAN GUNAKAN JAVASCRIPT!!!!
