@@ -13,19 +13,19 @@ class ActivityLogController extends Controller
         $institution = auth()->user()->institution;
 
         $query = ActivityLog::with('user')
-            ->whereHas('user', function($q) use ($institution) {
+            ->whereHas('user', function ($q) use ($institution) {
                 $q->where('institution_id', $institution?->id);
             });
 
         // Search filter
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('action', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhereHas('user', function($q2) use ($search) {
-                      $q2->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('subject_type', 'like', "%{$search}%")
+                    ->orWhereHas('user', function ($q2) use ($search) {
+                        $q2->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
@@ -47,10 +47,10 @@ class ActivityLogController extends Controller
             $query->where('user_id', $request->user);
         }
 
-        $logs = $query->latest()->paginate(20)->withQueryString();
+        $logs = $query->latest()->simplePaginate(5)->withQueryString();
 
         // Get distinct actions for filter
-        $actions = ActivityLog::whereHas('user', function($q) use ($institution) {
+        $actions = ActivityLog::whereHas('user', function ($q) use ($institution) {
             $q->where('institution_id', $institution?->id);
         })->distinct()->pluck('action');
 

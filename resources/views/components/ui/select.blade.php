@@ -97,7 +97,7 @@ $normalizedOptions[] = ['value' => $key, 'label' => $option];
         </button>
 
         {{-- Dropdown --}}
-        <div x-show="open" x-transition
+        <div x-cloak x-show="open" x-transition
             class="absolute z-50 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg">
 
             {{-- Search Input --}}

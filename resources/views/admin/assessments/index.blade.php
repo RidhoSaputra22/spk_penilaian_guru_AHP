@@ -1,19 +1,19 @@
 <x-layouts.admin>
     <div class="space-y-6">
-        <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold">Monitoring Penilaian</h1>
                 <p class="text-base-content/70">Pantau progress penilaian guru</p>
             </div>
             <div class="flex gap-2">
-                <button class="btn btn-outline" onclick="document.getElementById('assignModal').showModal()">
+                <a href="{{ route('admin.assessments.create', ['period' => $selectedPeriod?->id]) }}"
+                    class="btn btn-primary">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
                         stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                     </svg>
                     Buat Penugasan
-                </button>
+                </a>
             </div>
         </div>
 
@@ -153,7 +153,8 @@
                                 <td>
                                     <div class="flex items-center gap-3">
                                         <div class="avatar placeholder">
-                                            <div class="bg-primary/10 text-primary rounded-full w-10">
+                                            <div
+                                                class="bg-primary/10 text-primary rounded-full w-10 flex items-center justify-center">
                                                 <span
                                                     class="text-sm">{{ substr($assessment->teacher->user->name ?? '', 0, 2) }}</span>
                                             </div>
@@ -168,7 +169,8 @@
                                 <td>
                                     <div class="flex items-center gap-2">
                                         <div class="avatar placeholder">
-                                            <div class="bg-secondary/10 text-secondary rounded-full w-8">
+                                            <div
+                                                class="bg-secondary/10 text-secondary rounded-full w-8 flex items-center justify-center">
                                                 <span
                                                     class="text-xs">{{ substr($assessment->assessor->user->name ?? '', 0, 2) }}</span>
                                             </div>
@@ -236,7 +238,7 @@
 
         <!-- Pagination -->
         @if($assessments->hasPages())
-        <div class="flex justify-center">
+        <div class="flex justify-end">
             {{ $assessments->links() }}
         </div>
         @endif
@@ -257,50 +259,4 @@
         </div>
         @endif
     </div>
-
-    <!-- Assign Modal -->
-    <dialog id="assignModal" class="modal">
-        <div class="modal-box max-w-2xl">
-            <form method="dialog">
-                <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2">✕</button>
-            </form>
-            <h3 class="font-bold text-lg mb-4">Buat Penugasan Penilaian</h3>
-
-            <form action="{{ route('admin.assessments.assign') }}" method="POST" class="space-y-4">
-                @csrf
-                <input type="hidden" name="period_id" value="{{ $selectedPeriod?->id }}" />
-
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Pilih Guru</span>
-                    </label>
-                    <select name="teacher_ids[]" class="select select-bordered" multiple>
-                        <!-- Teachers will be loaded here -->
-                    </select>
-                    <label class="label">
-                        <span class="label-text-alt">Tahan Ctrl untuk memilih lebih dari satu</span>
-                    </label>
-                </div>
-
-                <div class="form-control">
-                    <label class="label">
-                        <span class="label-text">Pilih Penilai</span>
-                    </label>
-                    <select name="assessor_ids[]" class="select select-bordered" multiple>
-                        <!-- Assessors will be loaded here -->
-                    </select>
-                    <label class="label">
-                        <span class="label-text-alt">Tahan Ctrl untuk memilih lebih dari satu</span>
-                    </label>
-                </div>
-
-                <div class="modal-action">
-                    <button type="button" class="btn btn-ghost"
-                        onclick="document.getElementById('assignModal').close()">Batal</button>
-                    <button type="submit" class="btn btn-primary">Buat Penugasan</button>
-                </div>
-            </form>
-        </div>
-    </dialog>
-
 </x-layouts.admin>

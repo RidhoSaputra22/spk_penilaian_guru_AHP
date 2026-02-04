@@ -23,9 +23,9 @@
 
     <!-- Period Selection -->
     <x-ui.card class="mb-6">
-        <form class="flex flex-col md:flex-row gap-4 items-end">
+        <form method="GET" action="{{ route('admin.ahp.index') }}" class="flex flex-col md:flex-row gap-4 items-end">
             <div class="flex-1">
-                <x-ui.select name="period_id" label="Pilih Periode Penilaian" :options="$periods"
+                <x-ui.select name="period" label="Pilih Periode Penilaian" :options="$periods"
                     selected="{{ $selectedPeriod->id ?? '' }}" id="period-select" />
             </div>
             <x-ui.button type="primary" :isSubmit="true">
@@ -143,7 +143,7 @@
 
                     @if($ahpModel->status !== 'finalized' && count($comparisons ?? []) > 0)
                     <div class="flex justify-end mt-4">
-                        <x-ui.button type="primary">
+                        <x-ui.button type="primary" :isSubmit="true">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

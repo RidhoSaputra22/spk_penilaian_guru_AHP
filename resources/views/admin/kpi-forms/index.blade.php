@@ -78,7 +78,7 @@
                     </svg>
                     Builder
                 </x-ui.button>
-                <x-ui.button type="ghost" size="sm" href="{{ route('admin.kpi-forms.preview', $template) }}">
+                <x-ui.button type="warning" size="sm" href="{{ route('admin.kpi-forms.preview', $template) }}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -87,7 +87,7 @@
                     </svg>
                 </x-ui.button>
                 <div class="dropdown dropdown-end">
-                    <label tabindex="0" class="btn btn-ghost btn-sm">
+                    <label tabindex="0" class="btn btn-error btn-sm">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M12 5v.01M12 12v.01M12 19v.01" />

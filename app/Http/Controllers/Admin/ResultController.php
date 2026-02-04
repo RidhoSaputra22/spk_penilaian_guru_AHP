@@ -23,6 +23,7 @@ class ResultController extends Controller
         $results = collect();
         $criteria = collect();
         $criteriaAverages = [];
+        $statsData = [];
 
         if ($request->filled('period_id')) {
             $selectedPeriod = AssessmentPeriod::find($request->period_id);
@@ -31,7 +32,7 @@ class ResultController extends Controller
                 $periodResult = PeriodResult::where('assessment_period_id', $selectedPeriod->id)->first();
 
                 if ($periodResult) {
-                    $query = TeacherPeriodResult::with(['teacher.user', 'teacher.groups'])
+                    $query = TeacherPeriodResult::with(['teacher.user', 'teacher.groups', 'criteriaScores.criteriaNode'])
                         ->where('period_result_id', $periodResult->id);
 
                     // Search filter
@@ -64,11 +65,26 @@ class ResultController extends Controller
                         });
                     }
 
-                    $results = $query->orderByDesc('final_score')->get();
+                    // Get all results for ranking calculation
+                    $allResults = $query->orderByDesc('final_score')->get();
 
-                    // Add rank and grade
-                    $results = $results->map(function ($result, $index) {
-                        $result->rank = $index + 1;
+                    // Calculate stats from all results
+                    $statsData = [
+                        'avg_score' => $allResults->avg('final_score'),
+                        'max_score' => $allResults->max('final_score'),
+                        'min_score' => $allResults->min('final_score'),
+                    ];
+
+                    // Paginate
+                    $results = $query->orderByDesc('final_score')->paginate(5)->withQueryString();
+
+                    // Add rank and grade based on position in all results
+                    $results->getCollection()->transform(function ($result) use ($allResults) {
+                        $rank = $allResults->search(function ($item) use ($result) {
+                            return $item->id === $result->id;
+                        });
+
+                        $result->rank = $rank !== false ? $rank + 1 : 0;
                         $result->grade = $this->determineGrade($result->final_score);
 
                         return $result;
@@ -77,10 +93,20 @@ class ResultController extends Controller
 
                 // Get criteria for this period
                 $criteriaSetId = $selectedPeriod->ahpModel?->criteria_set_id;
-                $criteria = $criteriaSetId ? CriteriaNode::where('criteria_set_id', $criteriaSetId)
-                    ->whereNull('parent_id')
-                    ->orderBy('sort_order')
-                    ->get() : collect();
+
+                if ($criteriaSetId) {
+                    // Get goal node first, then get its children (criteria)
+                    $goal = CriteriaNode::where('criteria_set_id', $criteriaSetId)
+                        ->where('node_type', 'goal')
+                        ->first();
+
+                    $criteria = $goal ? CriteriaNode::where('parent_id', $goal->id)
+                        ->where('node_type', 'criteria')
+                        ->orderBy('sort_order')
+                        ->get() : collect();
+                } else {
+                    $criteria = collect();
+                }
 
                 // Calculate criteria averages
                 if (isset($periodResult) && $periodResult) {
@@ -101,7 +127,8 @@ class ResultController extends Controller
             'selectedPeriod',
             'results',
             'criteria',
-            'criteriaAverages'
+            'criteriaAverages',
+            'statsData'
         ));
     }
 
@@ -149,39 +176,98 @@ class ResultController extends Controller
             return back()->with('error', 'Hasil belum dihitung untuk periode ini.');
         }
 
-        $results = TeacherPeriodResult::with(['teacher.user', 'teacher.groups'])
+        $results = TeacherPeriodResult::with(['teacher.user', 'teacher.groups', 'criteriaScores.criteriaNode'])
             ->where('period_result_id', $periodResult->id)
             ->orderByDesc('final_score')
-            ->get();
+            ->get()
+            ->map(function ($result, $index) {
+                $result->rank = $index + 1;
+                $result->grade = $this->determineGrade($result->final_score);
 
+                return $result;
+            });
+
+        // Get criteria
+        $criteriaSetId = $period->ahpModel?->criteria_set_id;
+        $criteria = collect();
+
+        if ($criteriaSetId) {
+            $goal = CriteriaNode::where('criteria_set_id', $criteriaSetId)
+                ->where('node_type', 'goal')
+                ->first();
+
+            $criteria = $goal ? CriteriaNode::where('parent_id', $goal->id)
+                ->where('node_type', 'criteria')
+                ->orderBy('sort_order')
+                ->get() : collect();
+        }
+
+        $format = $request->get('format', 'excel');
+
+        if ($format === 'pdf') {
+            return $this->exportPdf($period, $results, $criteria);
+        } else {
+            return $this->exportExcel($period, $results, $criteria);
+        }
+    }
+
+    private function exportPdf($period, $results, $criteria)
+    {
+        // For now, return a simple HTML that can be printed as PDF
+        $html = view('admin.results.export-pdf', compact('period', 'results', 'criteria'))->render();
+
+        // You can use a PDF library like dompdf or wkhtmltopdf here
+        // For simplicity, we'll return HTML that can be printed
+        return response($html)
+            ->header('Content-Type', 'text/html')
+            ->header('Content-Disposition', 'inline; filename="hasil_penilaian_'.$period->name.'.html"');
+    }
+
+    private function exportExcel($period, $results, $criteria)
+    {
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="hasil_penilaian_'.$period->name.'.csv"',
         ];
 
-        $callback = function () use ($results) {
+        $callback = function () use ($results, $criteria) {
             $file = fopen('php://output', 'w');
 
             // Header row
-            fputcsv($file, [
+            $headerRow = [
                 'Ranking',
                 'Nama Guru',
-                'No. Pegawai',
-                'Kelompok',
-                'Skor Akhir',
-                'Grade',
-            ]);
+                'NIP',
+            ];
+
+            // Add criteria columns
+            foreach ($criteria as $criterion) {
+                $headerRow[] = $criterion->name;
+            }
+
+            $headerRow[] = 'Skor Akhir';
+            $headerRow[] = 'Grade';
+
+            fputcsv($file, $headerRow);
 
             // Data rows
-            foreach ($results as $index => $result) {
-                fputcsv($file, [
-                    $index + 1,
+            foreach ($results as $result) {
+                $row = [
+                    $result->rank,
                     $result->teacher->user->name ?? '-',
-                    $result->teacher->employee_no ?? '-',
-                    $result->teacher->groups->first()?->name ?? '-',
-                    number_format($result->final_score, 4),
-                    $this->determineGrade($result->final_score),
-                ]);
+                    $result->teacher->nip ?? '-',
+                ];
+
+                // Add criteria scores
+                foreach ($criteria as $criterion) {
+                    $criteriaScore = $result->criteriaScores->firstWhere('criteria_node_id', $criterion->id);
+                    $row[] = number_format($criteriaScore->weighted_score ?? 0, 2);
+                }
+
+                $row[] = number_format($result->final_score, 2);
+                $row[] = $result->grade;
+
+                fputcsv($file, $row);
             }
 
             fclose($file);

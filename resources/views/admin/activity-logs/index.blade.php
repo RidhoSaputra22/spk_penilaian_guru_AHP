@@ -11,7 +11,7 @@
         <!-- Filters -->
         <div class="card bg-base-100 shadow-sm">
             <div class="card-body">
-                <form action="{{ route('admin.activity-logs.index') }}" method="GET" class="flex flex-wrap gap-4">
+                <form action="{{ route('admin.activity-logs.index') }}" method="GET" class="flex  gap-4">
                     <div class="form-control flex-1 min-w-[200px]">
                         <input type="text" name="search" value="{{ request('search') }}"
                             placeholder="Cari aktivitas atau nama..." class="input input-bordered" />
@@ -58,7 +58,7 @@
                     <!-- Avatar -->
                     <div class="flex-shrink-0">
                         <div class="avatar placeholder">
-                            <div class="bg-primary/10 text-primary rounded-full w-10">
+                            <div class="bg-primary/10 text-primary rounded-full w-10 flex items-center justify-center">
                                 <span class="text-sm">{{ substr($log->user->name ?? 'S', 0, 2) }}</span>
                             </div>
                         </div>
@@ -160,7 +160,7 @@
 
         <!-- Pagination -->
         @if($logs->hasPages())
-        <div class="flex justify-center">
+        <div class="flex justify-end">
             {{ $logs->links() }}
         </div>
         @endif

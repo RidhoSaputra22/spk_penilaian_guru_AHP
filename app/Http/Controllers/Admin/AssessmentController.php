@@ -26,8 +26,9 @@ class AssessmentController extends Controller
         $assessments = collect();
         $stats = [];
 
-        if ($request->filled('period_id')) {
-            $selectedPeriod = $periods->firstWhere('id', $request->period_id);
+        if ($request->filled('period') || $request->filled('period_id')) {
+            $periodId = $request->filled('period') ? $request->period : $request->period_id;
+            $selectedPeriod = $periods->firstWhere('id', $periodId);
         } else {
             $selectedPeriod = $periods->firstWhere('status', 'open') ?? $periods->first();
         }
@@ -46,17 +47,22 @@ class AssessmentController extends Controller
 
             // Status filter
             if ($request->filled('status')) {
-                $query->where('status', $request->status);
+                if ($request->status === 'completed') {
+                    // For completed status, include both submitted and finalized
+                    $query->whereIn('status', ['submitted', 'finalized']);
+                } else {
+                    $query->where('status', $request->status);
+                }
             }
 
             $assessments = $query->latest()->paginate(10)->withQueryString();
 
-            // Stats
+            // Stats - count submitted and finalized as completed
             $stats = [
                 'total' => Assessment::where('assessment_period_id', $selectedPeriod->id)->count(),
                 'pending' => Assessment::where('assessment_period_id', $selectedPeriod->id)->where('status', 'pending')->count(),
                 'in_progress' => Assessment::where('assessment_period_id', $selectedPeriod->id)->where('status', 'in_progress')->count(),
-                'completed' => Assessment::where('assessment_period_id', $selectedPeriod->id)->where('status', 'submitted')->count(),
+                'completed' => Assessment::where('assessment_period_id', $selectedPeriod->id)->whereIn('status', ['submitted', 'finalized'])->count(),
             ];
         }
 
@@ -75,6 +81,149 @@ class AssessmentController extends Controller
         ]);
 
         return view('admin.assessments.show', compact('assessment'));
+    }
+
+    public function create(Request $request)
+    {
+        $institution = auth()->user()->institution;
+
+        $periods = AssessmentPeriod::where('institution_id', $institution?->id)
+            ->orderByDesc('scoring_open_at')
+            ->get()
+            ->mapWithKeys(fn ($p) => [
+                $p->id => "{$p->name} ({$p->academic_year} - {$p->semester})",
+            ]);
+
+        $selectedPeriod = null;
+        if ($request->filled('period')) {
+            $selectedPeriod = AssessmentPeriod::find($request->period);
+        } else {
+            $selectedPeriod = AssessmentPeriod::where('institution_id', $institution?->id)
+                ->where('status', 'open')
+                ->first();
+        }
+
+        $teachers = TeacherProfile::whereHas('user', function($q) use ($institution) {
+                $q->where('institution_id', $institution?->id);
+            })
+            ->with('user')
+            ->get()
+            ->mapWithKeys(fn ($t) => [
+                $t->id => $t->user->name . ' (' . ($t->nip ?? '-') . ')',
+            ]);
+
+        $assessors = AssessorProfile::whereHas('user', function($q) use ($institution) {
+                $q->where('institution_id', $institution?->id);
+            })
+            ->with('user')
+            ->get()
+            ->mapWithKeys(fn ($a) => [
+                $a->id => $a->user->name . ' (' . ($a->employee_id ?? '-') . ')',
+            ]);
+
+        return view('admin.assessments.create', compact(
+            'periods',
+            'selectedPeriod',
+            'teachers',
+            'assessors'
+        ));
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'period_id' => ['required', 'exists:assessment_periods,id'],
+            'assignment_type' => ['required', 'in:individual,bulk'],
+            'teacher_id' => ['required_if:assignment_type,individual', 'nullable', 'exists:teacher_profiles,id'],
+            'assessor_id' => ['required_if:assignment_type,individual', 'nullable', 'exists:assessor_profiles,id'],
+            'teacher_ids' => ['required_if:assignment_type,bulk', 'nullable', 'array'],
+            'teacher_ids.*' => ['exists:teacher_profiles,id'],
+            'assessor_ids' => ['required_if:assignment_type,bulk', 'nullable', 'array'],
+            'assessor_ids.*' => ['exists:assessor_profiles,id'],
+        ]);
+
+        $period = AssessmentPeriod::findOrFail($validated['period_id']);
+
+        // Get or create form assignment
+        $latestFormVersion = \App\Models\KpiFormVersion::whereHas('template', function($q) use ($period) {
+                $q->where('institution_id', $period->institution_id);
+            })
+            ->where('status', 'published')
+            ->latest('version')
+            ->first();
+
+        $assignment = KpiFormAssignment::firstOrCreate(
+            [
+                'assessment_period_id' => $period->id,
+            ],
+            [
+                'id' => Str::ulid(),
+                'form_version_id' => $latestFormVersion?->id,
+                'status' => 'active',
+                'assigned_at' => now(),
+                'assigned_by' => auth()->id(),
+            ]
+        );
+
+        $createdCount = 0;
+
+        if ($validated['assignment_type'] === 'individual') {
+            // Individual assignment
+            $assessment = Assessment::firstOrCreate(
+                [
+                    'assessment_period_id' => $period->id,
+                    'teacher_profile_id' => $validated['teacher_id'],
+                    'assessor_profile_id' => $validated['assessor_id'],
+                ],
+                [
+                    'id' => Str::ulid(),
+                    'assignment_id' => $assignment->id,
+                    'status' => 'pending',
+                ]
+            );
+
+            if ($assessment->wasRecentlyCreated) {
+                $createdCount++;
+            }
+        } else {
+            // Bulk assignment
+            foreach ($validated['teacher_ids'] as $teacherId) {
+                foreach ($validated['assessor_ids'] as $assessorId) {
+                    $assessment = Assessment::firstOrCreate(
+                        [
+                            'assessment_period_id' => $period->id,
+                            'teacher_profile_id' => $teacherId,
+                            'assessor_profile_id' => $assessorId,
+                        ],
+                        [
+                            'id' => Str::ulid(),
+                            'assignment_id' => $assignment->id,
+                            'status' => 'pending',
+                        ]
+                    );
+
+                    if ($assessment->wasRecentlyCreated) {
+                        $createdCount++;
+                    }
+                }
+            }
+        }
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'create_assessments',
+            'entity_type' => AssessmentPeriod::class,
+            'entity_id' => $period->id,
+            'description' => "Created {$createdCount} assessment assignments",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()
+            ->route('admin.assessments.index', ['period' => $period->id])
+            ->with('success', "Berhasil membuat {$createdCount} penugasan penilaian.");
     }
 
     public function assign(Request $request)

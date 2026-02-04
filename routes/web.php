@@ -127,6 +127,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
 
     // Assessments
     Route::get('assessments', [AssessmentController::class, 'index'])->name('assessments.index');
+    Route::get('assessments/create', [AssessmentController::class, 'create'])->name('assessments.create');
+    Route::post('assessments', [AssessmentController::class, 'store'])->name('assessments.store');
     Route::get('assessments/{assessment}', [AssessmentController::class, 'show'])->name('assessments.show');
     Route::post('assessments/assign', [AssessmentController::class, 'assign'])->name('assessments.assign');
 
@@ -148,9 +150,12 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     // KPI Assignments
     Route::resource('kpi-assignments', \App\Http\Controllers\Admin\KpiAssignmentController::class)->except(['edit', 'update']);
 
-    Route::get('reports', function () {
-        return view('admin.reports.index');
-    })->name('reports.index');
+    // Reports
+    Route::get('reports', [\App\Http\Controllers\Admin\ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/generate', [\App\Http\Controllers\Admin\ReportController::class, 'generate'])->name('reports.generate');
+    Route::post('reports', [\App\Http\Controllers\Admin\ReportController::class, 'store'])->name('reports.store');
+    Route::get('reports/export-progress', [\App\Http\Controllers\Admin\ReportController::class, 'exportProgress'])->name('reports.export-progress');
+    Route::get('reports/export-ahp', [\App\Http\Controllers\Admin\ReportController::class, 'exportAhp'])->name('reports.export-ahp');
 
     // Profile (placeholder)
     Route::get('profile', function () {

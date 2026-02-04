@@ -25,8 +25,8 @@ class AhpController extends Controller
             ->get();
 
         // Format periods for select dropdown
-        $periods = $periodsCollection->mapWithKeys(fn($p) => [
-            $p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"
+        $periods = $periodsCollection->mapWithKeys(fn ($p) => [
+            $p->id => "{$p->name} ({$p->academic_year} - {$p->semester})",
         ]);
 
         // Get active period or selected period
@@ -45,18 +45,25 @@ class AhpController extends Controller
         if ($selectedPeriod) {
             $ahpModel = $selectedPeriod->ahpModel;
 
-            // Get root level criteria (no parent)
-            $criteriaSetId = $ahpModel?->criteria_set_id;
-            $criteria = $criteriaSetId ? CriteriaNode::where('criteria_set_id', $criteriaSetId)
-                ->whereNull('parent_id')
-                ->orderBy('sort_order')
-                ->get() : collect();
-
             if ($ahpModel) {
+                // Get goal node first, then get its children (criteria)
+                $goal = CriteriaNode::where('criteria_set_id', $ahpModel->criteria_set_id)
+                    ->where('node_type', 'goal')
+                    ->first();
+
+                $criteria = $goal ? CriteriaNode::where('parent_id', $goal->id)
+                    ->where('node_type', 'criteria')
+                    ->orderBy('sort_order')
+                    ->get() : collect();
+
                 $comparisons = AhpComparison::where('ahp_model_id', $ahpModel->id)
                     ->with(['nodeA', 'nodeB'])
                     ->get();
-                $weights = AhpWeight::where('ahp_model_id', $ahpModel->id)->get();
+
+                $weights = AhpWeight::where('ahp_model_id', $ahpModel->id)
+                    ->where('level', 'criteria')
+                    ->with('criteriaNode')
+                    ->get();
             }
         }
 
