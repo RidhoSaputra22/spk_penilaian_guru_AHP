@@ -145,25 +145,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     // Scoring Scales
     Route::resource('scoring-scales', \App\Http\Controllers\Admin\ScoringScaleController::class);
 
-    Route::get('kpi-assignments', function () {
-        return view('admin.kpi-assignments.index');
-    })->name('kpi-assignments.index');
-
-    Route::get('kpi-assignments/create', function () {
-        return view('admin.kpi-assignments.create');
-    })->name('kpi-assignments.create');
-
-    Route::get('kpi-assignments/{assignment}/edit', function () {
-        return view('admin.kpi-assignments.edit');
-    })->name('kpi-assignments.edit');
-
-    Route::get('kpi-assignments/{assignment}', function () {
-        return view('admin.kpi-assignments.show');
-    })->name('kpi-assignments.show');
-
-    Route::delete('kpi-assignments/{assignment}', function () {
-        return redirect()->route('admin.kpi-assignments.index')->with('success', 'Assignment deleted');
-    })->name('kpi-assignments.destroy');
+    // KPI Assignments
+    Route::resource('kpi-assignments', \App\Http\Controllers\Admin\KpiAssignmentController::class)->except(['edit', 'update']);
 
     Route::get('reports', function () {
         return view('admin.reports.index');

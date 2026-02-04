@@ -126,7 +126,7 @@
                                 @endphp
                                 <x-ui.select :name="'item_'.$item->id" :label="$item->label" :options="$dropdownOptions"
                                     placeholder="-- Pilih Opsi --" :required="$item->is_required" :searchable="false"
-                                    disabled class="max-w-md" />
+                                    disabled class="" />
                                 @if($item->help_text)
                                 <p class="text-sm text-base-content/60 mt-1">{{ $item->help_text }}</p>
                                 @endif
