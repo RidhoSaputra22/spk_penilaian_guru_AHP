@@ -329,7 +329,7 @@
 
             <span>Form yang sudah dipublish tidak dapat diubah lagi. Pastikan semua seksi dan item sudah benar.</span>
         </x-ui.alert>
-        <div>
+        <div class="mt-4 flex justify-end gap-2">
             <form method="dialog"><button class="btn btn-ghost">Batal</button></form>
             <form method="POST" action="{{ route('admin.kpi-forms.publish-version', $version) }}">
                 @csrf

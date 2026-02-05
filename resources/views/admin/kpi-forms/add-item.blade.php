@@ -36,9 +36,7 @@
                 <x-ui.input name="label" label="Label Item" placeholder="Contoh: Kemampuan merencanakan pembelajaran"
                     required value="{{ old('label') }}" />
 
-                <!-- Field Type -->
-                <x-ui.select name="field_type" label="Tipe Field" :options="$fieldTypes"
-                    selected="{{ old('field_type', 'numeric') }}" required />
+
 
                 <!-- Criteria Selection -->
                 @if(!empty($criteriaOptions))
@@ -46,13 +44,7 @@
                     selected="{{ old('criteria_node_id') }}" />
                 @endif
 
-                <!-- Min/Max Values -->
-                <div class="grid grid-cols-2 gap-4">
-                    <x-ui.input name="min_value" label="Nilai Minimum" type="number" step="0.01" placeholder="0"
-                        value="{{ old('min_value') }}" />
-                    <x-ui.input name="max_value" label="Nilai Maximum" type="number" step="0.01" placeholder="100"
-                        value="{{ old('max_value') }}" />
-                </div>
+
 
                 <!-- Help Text -->
                 <x-ui.textarea name="help_text" label="Teks Bantuan" rows="3"

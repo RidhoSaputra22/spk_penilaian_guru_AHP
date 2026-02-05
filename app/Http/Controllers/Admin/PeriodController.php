@@ -358,6 +358,11 @@ class PeriodController extends Controller
             return back()->with('error', 'Periode ini tidak dapat dibuka karena status bukan draft.');
         }
 
+        // abort if there's other open period
+        if (AssessmentPeriod::where('status', 'open')->exists()) {
+            return back()->with('error', 'Sudah ada periode yang sedang dibuka. Silahkan tutup periode tersebut terlebih dahulu.');
+        }
+
         // Update period status to open and set open date
         $period->update([
             'status' => 'open',

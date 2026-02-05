@@ -110,7 +110,8 @@
                             <span x-show="sidebarOpen">Kriteria & Indikator</span>
                         </a>
                     </li>
-                    <li>
+                    <!-- fitur belum dibutuhkan :) -->
+                    <!-- <li>
                         <a href="{{ route('admin.scoring-scales.index') }}"
                             class="{{ request()->routeIs('admin.scoring-scales.*') ? 'active' : '' }}">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,7 +120,7 @@
                             </svg>
                             <span x-show="sidebarOpen">Skala Penilaian</span>
                         </a>
-                    </li>
+                    </li> -->
 
                     <!-- Divider: KPI Form -->
                     <li class="menu-title" x-show="sidebarOpen"><span>KPI Form Builder</span></li>

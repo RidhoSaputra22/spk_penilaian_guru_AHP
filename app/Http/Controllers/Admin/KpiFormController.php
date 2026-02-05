@@ -354,10 +354,8 @@ class KpiFormController extends Controller
             'section_id' => ['required', 'exists:kpi_form_sections,id'],
             'label' => ['required', 'string', 'max:255'],
             'help_text' => ['nullable', 'string'],
-            'field_type' => ['required', 'string', 'in:numeric,dropdown,radio,yesno,textarea'],
             'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
-            'min_value' => ['nullable', 'numeric'],
-            'max_value' => ['nullable', 'numeric'],
+
             'is_required' => ['nullable'],
         ]);
 
@@ -370,9 +368,9 @@ class KpiFormController extends Controller
             'criteria_node_id' => $validated['criteria_node_id'] ?? null,
             'label' => $validated['label'],
             'help_text' => $validated['help_text'] ?? null,
-            'field_type' => $validated['field_type'],
-            'min_value' => $validated['min_value'] ?? null,
-            'max_value' => $validated['max_value'] ?? null,
+            'field_type' => 'numeric',
+            'min_value' => 1, // dari form
+            'max_value' => 4, // dari form
             'is_required' => isset($validated['is_required']),
             'sort_order' => $maxSortOrder + 1,
         ]);
