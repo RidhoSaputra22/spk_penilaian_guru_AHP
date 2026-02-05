@@ -24,7 +24,7 @@ class AhpModel extends Model
     ];
 
     protected $casts = [
-        'consistency_ratio' => 'decimal:8',
+        'consistency_ratio' => 'decimal:2',
         'finalized_at' => 'datetime',
         'meta' => 'array',
     ];

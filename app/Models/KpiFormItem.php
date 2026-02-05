@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use App\Enums\KpiFormFieldType;
 use Illuminate\Database\Eloquent\Concerns\HasUlids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,8 +27,8 @@ class KpiFormItem extends Model
 
     protected $casts = [
         'is_required' => 'boolean',
-        'min_value' => 'decimal:4',
-        'max_value' => 'decimal:4',
+        'min_value' => 'decimal:2',
+        'max_value' => 'decimal:2',
         'meta' => 'array',
     ];
 

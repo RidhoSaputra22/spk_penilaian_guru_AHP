@@ -7,7 +7,6 @@ use App\Models\Assessment;
 use App\Models\AssessmentItemValue;
 use App\Models\AssessmentPeriod;
 use App\Models\AssessmentStatusLog;
-use App\Models\KpiFormAssignment;
 use App\Models\TeacherProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,17 +21,15 @@ class AssessmentController extends Controller
         $user = auth()->user();
         $assessorProfile = $user->assessorProfile;
 
-        if (!$assessorProfile) {
+        if (! $assessorProfile) {
             return redirect()->route('assessor.dashboard')
                 ->with('error', 'Profil penilai tidak ditemukan.');
         }
 
-        // Get periods where assessor has assignments
+        // Get periods where assessor has assessments assigned
         $periods = AssessmentPeriod::whereIn('status', ['open', 'closed'])
-            ->whereHas('assignments', function ($query) use ($assessorProfile) {
-                $query->whereHas('assessors', function ($q) use ($assessorProfile) {
-                    $q->where('assessor_profile_id', $assessorProfile->id);
-                });
+            ->whereHas('assessments', function ($query) use ($assessorProfile) {
+                $query->where('assessor_profile_id', $assessorProfile->id);
             })
             ->orderBy('created_at', 'desc')
             ->get();
@@ -48,45 +45,30 @@ class AssessmentController extends Controller
         $user = auth()->user();
         $assessorProfile = $user->assessorProfile;
 
-        if (!$assessorProfile) {
+        if (! $assessorProfile) {
             return redirect()->route('assessor.dashboard')
                 ->with('error', 'Profil penilai tidak ditemukan.');
         }
 
-        // Get assignments for this period where assessor is assigned
-        $assignments = KpiFormAssignment::where('assessment_period_id', $period->id)
-            ->whereHas('assessors', function ($query) use ($assessorProfile) {
-                $query->where('assessor_profile_id', $assessorProfile->id);
-            })
-            ->with(['formVersion.template', 'teachers.user', 'teacherGroups.teachers.user'])
+        // Get assessments for this period where assessor is assigned
+        $assessments = Assessment::where('assessment_period_id', $period->id)
+            ->where('assessor_profile_id', $assessorProfile->id)
+            ->with(['teacher.user', 'assignment.formVersion.template'])
             ->get();
 
-        // Collect all teachers from assignments
+        // Collect teachers with their assessment info
         $teachers = collect();
-        foreach ($assignments as $assignment) {
-            // Direct teacher assignments
-            foreach ($assignment->teachers as $teacher) {
-                if (!$teachers->contains('id', $teacher->id)) {
-                    $teacher->assignment = $assignment;
-                    $teachers->push($teacher);
-                }
-            }
-            // Teachers from groups
-            foreach ($assignment->teacherGroups as $group) {
-                foreach ($group->teachers as $teacher) {
-                    if (!$teachers->contains('id', $teacher->id)) {
-                        $teacher->assignment = $assignment;
-                        $teachers->push($teacher);
-                    }
-                }
+        foreach ($assessments as $assessment) {
+            $teacher = $assessment->teacher;
+            if ($teacher && ! $teachers->contains('id', $teacher->id)) {
+                $teacher->assessment = $assessment;
+                $teacher->assignment = $assessment->assignment;
+                $teachers->push($teacher);
             }
         }
 
         // Get existing assessments for these teachers by this assessor
-        $existingAssessments = Assessment::where('assessor_profile_id', $assessorProfile->id)
-            ->where('assessment_period_id', $period->id)
-            ->get()
-            ->keyBy('teacher_profile_id');
+        $existingAssessments = $assessments->keyBy('teacher_profile_id');
 
         return view('assessor.assessments.period', compact(
             'period',
@@ -104,39 +86,65 @@ class AssessmentController extends Controller
         $user = auth()->user();
         $assessorProfile = $user->assessorProfile;
 
-        if (!$assessorProfile) {
+        if (! $assessorProfile) {
             return redirect()->route('assessor.dashboard')
                 ->with('error', 'Profil penilai tidak ditemukan.');
         }
 
-        // Check if there's an existing assessment for this teacher by another assessor
-        $existingAssessmentByOther = Assessment::where('assessment_period_id', $period->id)
+        // Check if assessor is assigned to this teacher for this period
+        $existingAssessment = Assessment::where('assessment_period_id', $period->id)
             ->where('teacher_profile_id', $teacher->id)
-            ->where('assessor_profile_id', '!=', $assessorProfile->id)
+            ->where('assessor_profile_id', $assessorProfile->id)
             ->first();
 
-        if ($existingAssessmentByOther) {
+        if (! $existingAssessment) {
             abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
         }
 
-        // Find the assignment for this teacher in this period
-        $assignment = KpiFormAssignment::where('assessment_period_id', $period->id)
-            ->whereHas('assessors', function ($query) use ($assessorProfile) {
-                $query->where('assessor_profile_id', $assessorProfile->id);
-            })
-            ->where(function ($query) use ($teacher) {
-                $query->whereHas('teachers', function ($q) use ($teacher) {
-                    $q->where('teacher_profile_id', $teacher->id);
-                })->orWhereHas('teacherGroups.teachers', function ($q) use ($teacher) {
-                    $q->where('teacher_profiles.id', $teacher->id);
-                });
-            })
-            ->with(['formVersion.sections.items.scale.options', 'formVersion.sections.items.options'])
-            ->first();
+        // Get or create the assignment with form version
+        $assignment = $existingAssessment->assignment;
 
-        if (!$assignment) {
-            abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
+        // dd($existingAssessment, $assignment);
+
+        if (! $assignment) {
+            // Get the first available form template
+            $formTemplate = \App\Models\KpiFormTemplate::first();
+
+            if (! $formTemplate) {
+                return redirect()->route('assessor.assessments.period', $period)
+                    ->with('error', 'Form KPI belum tersedia. Hubungi administrator.');
+            }
+
+            // Get the latest published version
+            $formVersion = $formTemplate->versions()
+                ->where('status', 'published')
+                ->orderByDesc('version')
+                ->first();
+
+            if (! $formVersion) {
+                // If no published version, get the latest version
+                $formVersion = $formTemplate->versions()
+                    ->orderByDesc('version')
+                    ->first();
+            }
+
+            if (! $formVersion) {
+                return redirect()->route('assessor.assessments.period', $period)
+                    ->with('error', 'Versi form KPI belum tersedia. Hubungi administrator.');
+            }
+
+            // Create assignment
+            $assignment = \App\Models\KpiFormAssignment::firstOrCreate([
+                'assessment_period_id' => $period->id,
+                'form_version_id' => $formVersion->id,
+            ]);
+
+            // Update assessment with assignment_id
+            $existingAssessment->update(['assignment_id' => $assignment->id]);
+            $existingAssessment->refresh();
         }
+
+        $assignment->load(['formVersion.sections.items.scale.options', 'formVersion.sections.items.options']);
 
         // Check if period is still open for scoring
         if ($period->status !== 'open') {
@@ -272,12 +280,12 @@ class AssessmentController extends Controller
         $filledItems = $assessment->itemValues()->whereNotNull('score_value')->pluck('form_item_id')->toArray();
 
         $missingItems = $requiredItems->filter(function ($item) use ($filledItems) {
-            return !in_array($item->id, $filledItems);
+            return ! in_array($item->id, $filledItems);
         });
 
         if ($missingItems->isNotEmpty()) {
             return redirect()->back()
-                ->withErrors(['scores' => 'Masih ada ' . $missingItems->count() . ' indikator wajib yang belum diisi.']);
+                ->withErrors(['scores' => 'Masih ada '.$missingItems->count().' indikator wajib yang belum diisi.']);
         }
 
         DB::transaction(function () use ($assessment) {
@@ -296,6 +304,14 @@ class AssessmentController extends Controller
             ]);
         });
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Penilaian berhasil disubmit.',
+                'redirect' => route('assessor.results.show', $assessment),
+            ]);
+        }
+
         return redirect()->route('assessor.results.show', $assessment)
             ->with('success', 'Penilaian berhasil disubmit.');
     }
@@ -309,6 +325,11 @@ class AssessmentController extends Controller
         $notes = $request->input('notes', []);
 
         foreach ($values as $itemId => $value) {
+            // Skip empty values
+            if ($value === null || $value === '') {
+                continue;
+            }
+
             $data = [
                 'assessment_id' => $assessment->id,
                 'form_item_id' => $itemId,
@@ -317,12 +338,17 @@ class AssessmentController extends Controller
 
             // Determine the value type based on the input
             if (is_numeric($value)) {
-                $data['value_number'] = $value;
-                $data['score_value'] = $value;
-            } elseif (is_bool($value) || in_array($value, ['0', '1', 'true', 'false'])) {
+                $data['value_number'] = floatval($value);
+                $data['score_value'] = floatval($value);
+            } elseif (is_bool($value) || in_array($value, ['0', '1', 'true', 'false', 'on'])) {
                 $data['value_bool'] = filter_var($value, FILTER_VALIDATE_BOOLEAN);
+                $data['score_value'] = $data['value_bool'] ? 1 : 0;
             } else {
                 $data['value_string'] = $value;
+                // For string values, try to extract numeric score if possible
+                if (is_numeric($value)) {
+                    $data['score_value'] = floatval($value);
+                }
             }
 
             AssessmentItemValue::updateOrCreate(

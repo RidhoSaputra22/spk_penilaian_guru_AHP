@@ -143,7 +143,7 @@
                                 </svg>
                                 Lihat Hasil
                             </x-ui.button>
-                            @elseif($period->status === 'active')
+                            @elseif($period->status === 'open')
                             <x-ui.button type="primary" size="sm"
                                 href="{{ route('assessor.assessments.score', [$period, $teacher]) }}">
                                 @if($status === 'draft')

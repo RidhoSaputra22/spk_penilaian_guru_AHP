@@ -20,7 +20,7 @@ class AhpComparison extends Model
     ];
 
     protected $casts = [
-        'value' => 'decimal:6',
+        'value' => 'decimal:2',
     ];
 
     public function model()

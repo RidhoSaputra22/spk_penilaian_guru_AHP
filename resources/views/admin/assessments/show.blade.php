@@ -28,7 +28,8 @@
                                 <div class="space-y-2 mt-4">
                                     <div class="flex items-center gap-3">
                                         <div class="avatar placeholder">
-                                            <div class="bg-primary/10 text-primary rounded-full w-12">
+                                            <div
+                                                class="bg-primary/10 text-primary rounded-full w-12 flex items-center justify-center">
                                                 <span
                                                     class="text-sm">{{ substr($assessment->teacher->user->name ?? '', 0, 2) }}</span>
                                             </div>
@@ -67,7 +68,8 @@
                         <div class="space-y-2 mt-4">
                             <div class="flex items-center gap-3">
                                 <div class="avatar placeholder">
-                                    <div class="bg-secondary/10 text-secondary rounded-full w-12">
+                                    <div
+                                        class="bg-secondary/10 text-secondary rounded-full w-12 flex items-center justify-center">
                                         <span
                                             class="text-sm">{{ substr($assessment->assessor->user->name ?? '', 0, 2) }}</span>
                                     </div>

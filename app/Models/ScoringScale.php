@@ -22,9 +22,9 @@ class ScoringScale extends Model
     ];
 
     protected $casts = [
-        'min_value' => 'decimal:4',
-        'max_value' => 'decimal:4',
-        'step' => 'decimal:4',
+        'min_value' => 'decimal:2',
+        'max_value' => 'decimal:2',
+        'step' => 'decimal:2',
         'meta' => 'array',
     ];
 

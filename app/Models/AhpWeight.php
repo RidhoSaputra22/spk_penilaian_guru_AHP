@@ -20,7 +20,7 @@ class AhpWeight extends Model
     ];
 
     protected $casts = [
-        'weight' => 'decimal:12',
+        'weight' => 'decimal:2',
         'meta' => 'array',
     ];
 

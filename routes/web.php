@@ -88,7 +88,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('ahp', [AhpController::class, 'index'])->name('ahp.index');
     Route::post('ahp/model', [AhpController::class, 'createModel'])->name('ahp.create-model');
     Route::post('ahp/comparisons', [AhpController::class, 'saveComparisons'])->name('ahp.save-comparisons');
-    Route::post('ahp/{ahpModel}/comparisons', [AhpController::class, 'saveComparisons'])->name('ahp.store-comparisons');
+    Route::post('ahp/{ahpModel}/comparisons', [AhpController::class, 'storeComparisons'])->name('ahp.store-comparisons');
+    Route::post('ahp/{ahpModel}/regenerate', [AhpController::class, 'regenerateComparisons'])->name('ahp.regenerate-comparisons');
     Route::post('ahp/{ahpModel}/finalize', [AhpController::class, 'finalize'])->name('ahp.finalize');
     Route::post('ahp/{ahpModel}/reset', [AhpController::class, 'reset'])->name('ahp.reset');
 

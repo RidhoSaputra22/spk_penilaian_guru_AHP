@@ -17,13 +17,12 @@ class DashboardController extends Controller
             return redirect()->route('login')->with('error', 'Profil penilai tidak ditemukan.');
         }
 
-        // Get active periods where assessor is assigned
+        // Get active periods where assessor has assessments
         $activePeriods = AssessmentPeriod::where('status', 'open')
             ->where('institution_id', $user->institution_id)
-            ->whereHas('assignments.assessors', function ($query) use ($assessorProfile) {
-                $query->where('assessor_profiles.id', $assessorProfile->id);
+            ->whereHas('assessments', function ($query) use ($assessorProfile) {
+                $query->where('assessor_profile_id', $assessorProfile->id);
             })
-            ->with('assignments')
             ->orderBy('scoring_close_at', 'desc')
             ->get();
 

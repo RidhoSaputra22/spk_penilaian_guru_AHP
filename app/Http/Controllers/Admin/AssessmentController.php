@@ -3,12 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
-use App\Models\TeacherProfile;
 use App\Models\AssessorProfile;
 use App\Models\KpiFormAssignment;
-use App\Models\ActivityLog;
+use App\Models\TeacherProfile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -40,7 +40,7 @@ class AssessmentController extends Controller
             // Search filter
             if ($request->filled('search')) {
                 $search = $request->search;
-                $query->whereHas('teacher.user', function($q) use ($search) {
+                $query->whereHas('teacher.user', function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%");
                 });
             }
@@ -103,23 +103,23 @@ class AssessmentController extends Controller
                 ->first();
         }
 
-        $teachers = TeacherProfile::whereHas('user', function($q) use ($institution) {
-                $q->where('institution_id', $institution?->id);
-            })
+        $teachers = TeacherProfile::whereHas('user', function ($q) use ($institution) {
+            $q->where('institution_id', $institution?->id);
+        })
             ->with('user')
             ->get()
             ->mapWithKeys(fn ($t) => [
-                $t->id => $t->user->name . ' (' . ($t->nip ?? '-') . ')',
-            ]);
+            $t->id => $t->user->name.' ('.($t->nip ?? '-').')',
+        ]);
 
-        $assessors = AssessorProfile::whereHas('user', function($q) use ($institution) {
-                $q->where('institution_id', $institution?->id);
-            })
+        $assessors = AssessorProfile::whereHas('user', function ($q) use ($institution) {
+            $q->where('institution_id', $institution?->id);
+        })
             ->with('user')
             ->get()
             ->mapWithKeys(fn ($a) => [
-                $a->id => $a->user->name . ' (' . ($a->employee_id ?? '-') . ')',
-            ]);
+            $a->id => $a->user->name.' ('.($a->employee_id ?? '-').')',
+        ]);
 
         return view('admin.assessments.create', compact(
             'periods',
@@ -145,9 +145,9 @@ class AssessmentController extends Controller
         $period = AssessmentPeriod::findOrFail($validated['period_id']);
 
         // Get or create form assignment
-        $latestFormVersion = \App\Models\KpiFormVersion::whereHas('template', function($q) use ($period) {
-                $q->where('institution_id', $period->institution_id);
-            })
+        $latestFormVersion = \App\Models\KpiFormVersion::whereHas('template', function ($q) use ($period) {
+            $q->where('institution_id', $period->institution_id);
+        })
             ->where('status', 'published')
             ->latest('version')
             ->first();
@@ -240,9 +240,9 @@ class AssessmentController extends Controller
 
         // Get or create form assignment
         // Get the latest active KPI form version for this institution
-        $latestFormVersion = \App\Models\KpiFormVersion::whereHas('template', function($q) use ($period) {
-                $q->where('institution_id', $period->institution_id);
-            })
+        $latestFormVersion = \App\Models\KpiFormVersion::whereHas('template', function ($q) use ($period) {
+            $q->where('institution_id', $period->institution_id);
+        })
             ->where('status', 'published')
             ->latest('version')
             ->first();
@@ -290,7 +290,7 @@ class AssessmentController extends Controller
             'action' => 'assign_assessments',
             'entity_type' => AssessmentPeriod::class,
             'entity_id' => $period->id,
-            'description' => "Assigned {$createdCount} assessments for " . count($validated['teacher_ids']) . " teachers to " . count($validated['assessor_ids']) . " assessors",
+            'description' => "Assigned {$createdCount} assessments for ".count($validated['teacher_ids']).' teachers to '.count($validated['assessor_ids']).' assessors',
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
         ]);

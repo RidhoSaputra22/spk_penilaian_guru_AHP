@@ -20,9 +20,9 @@ class TeacherCriteriaScore extends Model
     ];
 
     protected $casts = [
-        'raw_score' => 'decimal:4',
-        'weight' => 'decimal:12',
-        'weighted_score' => 'decimal:4',
+        'raw_score' => 'decimal:2',
+        'weight' => 'decimal:2',
+        'weighted_score' => 'decimal:2',
         'meta' => 'array',
     ];
 

@@ -34,6 +34,8 @@
         </form>
     </x-ui.card>
 
+
+
     @if(isset($selectedPeriod) && isset($ahpModel))
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Content -->
@@ -132,8 +134,26 @@
                                 </tr>
                                 @empty
                                 <tr>
-                                    <td colspan="3" class="text-center py-8 text-base-content/60">
-                                        Tidak ada kriteria untuk dibandingkan
+                                    <td colspan="3" class="text-center py-8">
+                                        <div class="flex flex-col items-center gap-4">
+                                            <p class="text-base-content/60">Tidak ada kriteria untuk dibandingkan</p>
+                                            @if($ahpModel->status !== 'finalized')
+                                            <form method="POST"
+                                                action="{{ route('admin.ahp.regenerate-comparisons', $ahpModel->id) }}"
+                                                onsubmit="console.log('Form submitting...'); return true;">
+                                                @csrf
+                                                <button type="submit" class="btn btn-primary">
+                                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor"
+                                                        viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                                            stroke-width="2"
+                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                    Generate Pasangan Perbandingan
+                                                </button>
+                                            </form>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                                 @endforelse
@@ -299,7 +319,7 @@
             </form>
             <form method="POST" action="{{ route('admin.ahp.finalize', $ahpModel) }}">
                 @csrf
-                @method('PATCH')
+
                 <x-ui.button type="success">Finalisasi</x-ui.button>
             </form>
         </x-slot:actions>

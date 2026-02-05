@@ -22,9 +22,9 @@ class AssessmentItemValue extends Model
     ];
 
     protected $casts = [
-        'value_number' => 'decimal:4',
+        'value_number' => 'decimal:2',
         'value_bool' => 'boolean',
-        'score_value' => 'decimal:4',
+        'score_value' => 'decimal:2',
         'meta' => 'array',
     ];
 

@@ -55,24 +55,40 @@
         </div>
     </x-ui.card>
 
-    <!-- Assessment Form -->
-    <form id="assessmentForm" action="{{ route('assessor.assessments.submit', $assessment) }}" method="POST"
-        x-data="assessmentForm()" @submit.prevent="submitForm">
-        @csrf
+    @php
+    // Calculate filled items for progress
+    $totalItems = $formVersion->sections->flatMap->items->count();
+    $filledCount = 0;
+    foreach($formVersion->sections as $section) {
+    foreach($section->items as $item) {
+    if(isset($existingValues[$item->id])) {
+    $value = $existingValues[$item->id];
+    if($value->value_number !== null || $value->value_string !== null || $value->value_bool !== null) {
+    $filledCount++;
+    }
+    }
+    }
+    }
+    @endphp
 
-        @if($formVersion->sections->isEmpty())
-        <x-ui.alert type="warning">
-            Form KPI belum memiliki section/item. Hubungi administrator.
-        </x-ui.alert>
-        @else
-        <!-- Progress Bar -->
-        <div class="mb-6">
-            <div class="flex justify-between text-sm mb-2">
-                <span>Progress Pengisian</span>
-                <span x-text="filledCount + '/' + totalItems + ' indikator'"></span>
-            </div>
-            <progress class="progress progress-primary w-full" :value="filledCount" :max="totalItems"></progress>
+    @if($formVersion->sections->isEmpty())
+    <x-ui.alert type="warning">
+        Form KPI belum memiliki section/item. Hubungi administrator.
+    </x-ui.alert>
+    @else
+    <!-- Progress Bar -->
+    <div class="mb-6">
+        <div class="flex justify-between text-sm mb-2">
+            <span>Progress Pengisian</span>
+            <span>{{ $filledCount }}/{{ $totalItems }} indikator</span>
         </div>
+        <progress class="progress progress-primary w-full" value="{{ $filledCount }}"
+            max="{{ $totalItems }}"></progress>
+    </div>
+
+    <!-- Assessment Form -->
+    <form id="assessmentForm" action="{{ route('assessor.assessments.submit', $assessment) }}" method="POST">
+        @csrf
 
         <!-- Sections -->
         <div class="space-y-6">
@@ -101,9 +117,9 @@
                     @php
                     $existingValue = $existingValues[$item->id] ?? null;
                     $fieldId = "item_{$item->id}";
+                    $hasNotes = $existingValue?->notes ? true : false;
                     @endphp
-                    <div class="p-4 rounded-lg bg-base-200/50 border border-base-200"
-                        x-data="{ showNotes: {{ $existingValue?->notes ? 'true' : 'false' }} }">
+                    <div class="p-4 rounded-lg bg-base-200/50 border border-base-200">
                         <!-- Item Label -->
                         <div class="flex justify-between items-start mb-3">
                             <label class="font-medium" for="{{ $fieldId }}">
@@ -112,13 +128,13 @@
                                 <span class="text-error">*</span>
                                 @endif
                             </label>
-                            <button type="button" @click="showNotes = !showNotes" class="btn btn-ghost btn-xs">
+                            <label for="notes_toggle_{{ $item->id }}" class="btn btn-ghost btn-xs cursor-pointer">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
                                 </svg>
                                 Catatan
-                            </button>
+                            </label>
                         </div>
 
                         @if($item->help_text)
@@ -133,16 +149,15 @@
                             <input type="range" name="values[{{ $item->id }}]" id="{{ $fieldId }}"
                                 min="{{ $item->min_value ?? 0 }}" max="{{ $item->max_value ?? 100 }}"
                                 value="{{ $existingValue?->value_number ?? $item->default_value ?? ($item->min_value ?? 0) }}"
-                                class="range range-primary flex-1" @input="updateProgress()"
-                                x-ref="range_{{ $item->id }}"
+                                class="range range-primary flex-1"
                                 oninput="document.getElementById('value_display_{{ $item->id }}').innerText = this.value" />
                             <div class="badge badge-lg badge-primary" id="value_display_{{ $item->id }}">
                                 {{ $existingValue?->value_number ?? $item->default_value ?? ($item->min_value ?? 0) }}
                             </div>
                         </div>
                         <div class="flex justify-between text-xs text-base-content/50 mt-1">
-                            <span>{{ $item->min_value ?? 0 }}</span>
-                            <span>{{ $item->max_value ?? 100 }}</span>
+                            <span>{{ (int)($item->min_value ?? 0) }}</span>
+                            <span>{{ (int)($item->max_value ?? 100) }}</span>
                         </div>
                         @break
 
@@ -154,7 +169,7 @@
                             @foreach($item->scale->options as $option)
                             <label class="cursor-pointer">
                                 <input type="radio" name="values[{{ $item->id }}]" value="{{ $option->numeric_value }}"
-                                    class="peer hidden" @change="updateProgress()"
+                                    class="peer hidden"
                                     {{ ($existingValue?->value_number == $option->numeric_value) ? 'checked' : '' }}
                                     {{ $item->is_required ? 'required' : '' }} />
                                 <div
@@ -172,7 +187,7 @@
                             <label
                                 class="flex items-center gap-3 p-3 rounded-lg border border-base-300 cursor-pointer hover:bg-base-200 transition-colors">
                                 <input type="radio" name="values[{{ $item->id }}]" value="{{ $option->value }}"
-                                    class="radio radio-primary" @change="updateProgress()"
+                                    class="radio radio-primary"
                                     {{ ($existingValue?->value_string == $option->value || $existingValue?->value_number == $option->value) ? 'checked' : '' }}
                                     {{ $item->is_required ? 'required' : '' }} />
                                 <span>{{ $option->label }}</span>
@@ -186,16 +201,14 @@
 
                         @case('textarea')
                         <textarea name="values[{{ $item->id }}]" id="{{ $fieldId }}"
-                            class="textarea textarea-bordered w-full" rows="3" @input="updateProgress()"
-                            placeholder="Masukkan jawaban..."
+                            class="textarea textarea-bordered w-full" rows="3" placeholder="Masukkan jawaban..."
                             {{ $item->is_required ? 'required' : '' }}>{{ $existingValue?->value_string ?? '' }}</textarea>
                         @break
 
                         @case('checkbox')
                         <label class="flex items-center gap-3 cursor-pointer">
                             <input type="checkbox" name="values[{{ $item->id }}]" value="1"
-                                class="checkbox checkbox-primary" @change="updateProgress()"
-                                {{ $existingValue?->value_bool ? 'checked' : '' }} />
+                                class="checkbox checkbox-primary" {{ $existingValue?->value_bool ? 'checked' : '' }} />
                             <span>Ya / Memenuhi</span>
                         </label>
                         @break
@@ -205,13 +218,14 @@
                         <input type="number" name="values[{{ $item->id }}]" id="{{ $fieldId }}"
                             min="{{ $item->min_value ?? 0 }}" max="{{ $item->max_value ?? 100 }}"
                             value="{{ $existingValue?->value_number ?? '' }}" class="input input-bordered w-full"
-                            @input="updateProgress()"
-                            placeholder="Masukkan nilai ({{ $item->min_value ?? 0 }} - {{ $item->max_value ?? 100 }})"
+                            placeholder="Masukkan nilai ({{ (int)($item->min_value ?? 0) }} - {{ (int)($item->max_value ?? 100) }})"
                             {{ $item->is_required ? 'required' : '' }} />
                         @endswitch
 
                         <!-- Notes Field -->
-                        <div x-show="showNotes" x-collapse class="mt-3">
+                        <input type="checkbox" id="notes_toggle_{{ $item->id }}" class="hidden peer"
+                            {{ $hasNotes ? 'checked' : '' }} />
+                        <div class="hidden peer-checked:block mt-3">
                             <textarea name="notes[{{ $item->id }}]"
                                 class="textarea textarea-bordered w-full textarea-sm" rows="2"
                                 placeholder="Catatan/komentar untuk indikator ini (opsional)">{{ $existingValue?->notes ?? '' }}</textarea>
@@ -229,23 +243,26 @@
             <x-ui.card class="!shadow-2xl border border-base-300">
                 <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
                     <div class="text-sm text-base-content/60">
-                        <span x-show="!isSaving">Terakhir disimpan: <span x-text="lastSaved"></span></span>
-                        <span x-show="isSaving" class="loading loading-spinner loading-sm"></span>
-                        <span x-show="isSaving"> Menyimpan...</span>
+                        @if(session('draft_saved_at'))
+                        Terakhir disimpan: {{ session('draft_saved_at') }}
+                        @else
+                        Belum disimpan
+                        @endif
                     </div>
                     <div class="flex gap-2">
                         <x-ui.button type="ghost" href="{{ route('assessor.assessments.period', $period) }}">
                             Batal
                         </x-ui.button>
-                        <button type="button" class="btn btn-outline btn-primary" @click="saveDraft()"
-                            :disabled="isSaving">
+                        <button type="submit" formaction="{{ route('assessor.assessments.save-draft', $assessment) }}"
+                            class="btn btn-outline btn-primary">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                             </svg>
                             Simpan Draft
                         </button>
-                        <button type="button" class="btn btn-primary" @click="confirmSubmit()" :disabled="isSaving">
+                        <button type="submit" class="btn btn-primary"
+                            onclick="return confirm('Yakin submit penilaian? Setelah disubmit, Anda tidak dapat mengubah nilai lagi.')">
                             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -256,155 +273,9 @@
                 </div>
             </x-ui.card>
         </div>
-        @endif
     </form>
+    @endif
 
-    <!-- Submit Confirmation Modal -->
-    <x-ui.modal id="confirmSubmitModal" title="Konfirmasi Submit Penilaian">
-        <div class="py-4">
-            <div class="flex items-center gap-4 mb-4">
-                <div class="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center">
-                    <svg class="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
-                </div>
-                <div>
-                    <h4 class="font-bold">Yakin submit penilaian?</h4>
-                    <p class="text-sm text-base-content/60">
-                        Setelah disubmit, Anda tidak dapat mengubah nilai lagi.
-                    </p>
-                </div>
-            </div>
 
-            <div class="bg-base-200 rounded-lg p-4">
-                <p class="text-sm"><strong>Guru:</strong> {{ $teacher->user->name ?? '-' }}</p>
-                <p class="text-sm"><strong>Periode:</strong> {{ $period->name }}</p>
-            </div>
-        </div>
-
-        <x-slot:actions>
-            <form method="dialog">
-                <x-ui.button type="ghost">Batal</x-ui.button>
-            </form>
-            <x-ui.button type="primary" onclick="document.getElementById('assessmentForm').submit()">
-                Ya, Submit Sekarang
-            </x-ui.button>
-        </x-slot:actions>
-    </x-ui.modal>
-
-    @push('scripts')
-    <script>
-    function assessmentForm() {
-        return {
-            totalItems: {
-                {
-                    $formVersion - > sections - > flatMap - > items - > count()
-                }
-            },
-            filledCount: 0,
-            isSaving: false,
-            lastSaved: 'Belum disimpan',
-
-            init() {
-                this.updateProgress();
-                // Auto-save every 60 seconds
-                setInterval(() => {
-                    if (!this.isSaving) {
-                        this.saveDraft(true);
-                    }
-                }, 60000);
-            },
-
-            updateProgress() {
-                const form = document.getElementById('assessmentForm');
-                const inputs = form.querySelectorAll(
-                    'input[name^="values["], textarea[name^="values["], select[name^="values["]');
-                let filled = 0;
-
-                inputs.forEach(input => {
-                    if (input.type === 'radio' || input.type === 'checkbox') {
-                        if (input.checked) filled++;
-                    } else if (input.value && input.value.trim() !== '') {
-                        filled++;
-                    }
-                });
-
-                // Count unique filled items for radio buttons
-                const radioGroups = {};
-                form.querySelectorAll('input[type="radio"][name^="values["]:checked').forEach(radio => {
-                    radioGroups[radio.name] = true;
-                });
-                filled = Object.keys(radioGroups).length;
-
-                // Add other input types
-                form.querySelectorAll(
-                    'input[type="number"][name^="values["], input[type="range"][name^="values["], textarea[name^="values["]'
-                    ).forEach(input => {
-                    if (input.value && input.value.trim() !== '') {
-                        filled++;
-                    }
-                });
-
-                this.filledCount = filled;
-            },
-
-            async saveDraft(silent = false) {
-                this.isSaving = true;
-                const form = document.getElementById('assessmentForm');
-                const formData = new FormData(form);
-
-                try {
-                    const response = await fetch('{{ route('
-                        assessor.assessments.save - draft ', $assessment) }}', {
-                            method: 'POST',
-                            body: formData,
-                            headers: {
-                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                                'Accept': 'application/json',
-                            }
-                        });
-
-                    const data = await response.json();
-
-                    if (data.success) {
-                        this.lastSaved = new Date().toLocaleTimeString('id-ID');
-                        if (!silent) {
-                            // Show toast notification
-                            this.showToast('Draft berhasil disimpan', 'success');
-                        }
-                    } else {
-                        this.showToast(data.error || 'Gagal menyimpan', 'error');
-                    }
-                } catch (error) {
-                    console.error('Save draft error:', error);
-                    if (!silent) {
-                        this.showToast('Terjadi kesalahan saat menyimpan', 'error');
-                    }
-                } finally {
-                    this.isSaving = false;
-                }
-            },
-
-            confirmSubmit() {
-                document.getElementById('confirmSubmitModal').showModal();
-            },
-
-            submitForm() {
-                document.getElementById('assessmentForm').submit();
-            },
-
-            showToast(message, type) {
-                // Simple toast implementation
-                const toast = document.createElement('div');
-                toast.className = `alert alert-${type} fixed bottom-20 right-4 w-auto max-w-sm z-50 shadow-lg`;
-                toast.innerHTML = `<span>${message}</span>`;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 3000);
-            }
-        }
-    }
-    </script>
-    @endpush
 
 </x-layouts.assessor>

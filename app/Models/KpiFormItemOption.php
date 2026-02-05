@@ -20,7 +20,7 @@ class KpiFormItemOption extends Model
     ];
 
     protected $casts = [
-        'score_value' => 'decimal:4',
+        'score_value' => 'decimal:2',
         'meta' => 'array',
     ];
 

@@ -166,14 +166,14 @@
                                 $scaleOption = $item->scale->options->firstWhere('numeric_value', $value->value_number);
                                 @endphp
                                 <div class="flex flex-col items-center">
-                                    <span class="text-xl font-bold text-primary">{{ $value->value_number }}</span>
+                                    <span class="text-xl font-bold text-primary">{{ number_format($value->value_number, 0, ',', '.') }}</span>
                                     @if($scaleOption)
                                     <span class="text-xs text-base-content/60">{{ $scaleOption->label }}</span>
                                     @endif
                                 </div>
                                 @else
                                 <span class="text-xl font-bold text-primary">
-                                    {{ $value->value_number ?? $value->value_string ?? '-' }}
+                                    {{ $value->value_number ? number_format($value->value_number, 0, ',', '.') : ($value->value_string ?? '-') }}
                                 </span>
                                 @endif
                                 @endswitch

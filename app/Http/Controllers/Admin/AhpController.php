@@ -96,7 +96,11 @@ class AhpController extends Controller
             'assessment_period_id' => $period->id,
             'criteria_set_id' => $validated['criteria_set_id'],
             'status' => 'draft',
+            'created_by' => auth()->id(),
         ]);
+
+        // Auto-generate comparison pairs
+        $this->generateComparisonPairs($ahpModel);
 
         // Log activity
         ActivityLog::create([
@@ -112,6 +116,45 @@ class AhpController extends Controller
 
         return redirect()->route('admin.ahp.index', ['period' => $period->id])
             ->with('success', 'Model AHP berhasil dibuat.');
+    }
+
+    /**
+     * Generate pairwise comparison pairs for AHP model
+     */
+    protected function generateComparisonPairs(AhpModel $ahpModel)
+    {
+        // Get goal node
+        $goal = CriteriaNode::where('criteria_set_id', $ahpModel->criteria_set_id)
+            ->where('node_type', 'goal')
+            ->first();
+
+        if (! $goal) {
+            return;
+        }
+
+        // Get all criteria nodes (children of goal)
+        $criteria = CriteriaNode::where('parent_id', $goal->id)
+            ->where('node_type', 'criteria')
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($criteria->count() < 2) {
+            return; // Need at least 2 criteria to compare
+        }
+
+        // Generate all unique pairs (combinations)
+        for ($i = 0; $i < $criteria->count(); $i++) {
+            for ($j = $i + 1; $j < $criteria->count(); $j++) {
+                AhpComparison::create([
+                    'id' => Str::ulid(),
+                    'ahp_model_id' => $ahpModel->id,
+                    'parent_node_id' => $goal->id,
+                    'node_a_id' => $criteria[$i]->id,
+                    'node_b_id' => $criteria[$j]->id,
+                    'value' => 1, // Default: equally important
+                ]);
+            }
+        }
     }
 
     public function saveComparisons(Request $request, ?AhpModel $ahpModel = null)
@@ -164,15 +207,75 @@ class AhpController extends Controller
         ]);
     }
 
+    /**
+     * Store comparisons from HTML form (format: comparisons[node_a_id][node_b_id] = value)
+     */
+    public function storeComparisons(Request $request, AhpModel $ahpModel)
+    {
+        if ($ahpModel->status === 'finalized') {
+            return back()->with('error', 'Model AHP sudah finalized, tidak dapat diubah.');
+        }
+
+        $validated = $request->validate([
+            'comparisons' => ['required', 'array'],
+        ]);
+
+        // Get goal node for parent_node_id
+        $goal = CriteriaNode::where('criteria_set_id', $ahpModel->criteria_set_id)
+            ->where('node_type', 'goal')
+            ->first();
+
+        // Update comparison values from form format: comparisons[node_a_id][node_b_id] = value
+        foreach ($validated['comparisons'] as $nodeAId => $nodes) {
+            foreach ($nodes as $nodeBId => $value) {
+                $comparison = AhpComparison::where('ahp_model_id', $ahpModel->id)
+                    ->where('node_a_id', $nodeAId)
+                    ->where('node_b_id', $nodeBId)
+                    ->first();
+
+                if ($comparison) {
+                    $comparison->update(['value' => (float) $value]);
+                }
+            }
+        }
+
+        // Calculate weights using AHP algorithm
+        $this->calculateWeights($ahpModel);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'update_ahp_comparisons',
+            'entity_type' => AhpModel::class,
+            'entity_id' => $ahpModel->id,
+            'description' => 'Updated AHP comparisons and recalculated weights',
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        $cr = $ahpModel->fresh()->consistency_ratio;
+        $crPercent = number_format($cr * 100, 2);
+
+        if ($cr <= 0.1) {
+            return back()->with('success', "Bobot berhasil dihitung! Consistency Ratio: {$crPercent}% (Valid)");
+        } else {
+            return back()->with('warning', "Bobot dihitung, tapi Consistency Ratio: {$crPercent}% melebihi 10%. Perbaiki perbandingan untuk hasil yang lebih konsisten.");
+        }
+    }
+
     protected function calculateWeights(AhpModel $ahpModel)
     {
         $comparisons = AhpComparison::where('ahp_model_id', $ahpModel->id)
-            ->whereNull('parent_criteria_id')
             ->get();
 
+        if ($comparisons->isEmpty()) {
+            return;
+        }
+
         // Get unique criteria IDs
-        $criteriaIds = $comparisons->pluck('criteria_i_id')
-            ->merge($comparisons->pluck('criteria_j_id'))
+        $criteriaIds = $comparisons->pluck('node_a_id')
+            ->merge($comparisons->pluck('node_b_id'))
             ->unique()
             ->values();
 
@@ -189,15 +292,15 @@ class AhpController extends Controller
                     $matrix[$i][$j] = 1;
                 } else {
                     $comparison = $comparisons->first(function ($c) use ($criteriaIds, $i, $j) {
-                        return $c->criteria_i_id == $criteriaIds[$i] && $c->criteria_j_id == $criteriaIds[$j];
+                        return $c->node_a_id == $criteriaIds[$i] && $c->node_b_id == $criteriaIds[$j];
                     });
 
                     if ($comparison) {
                         $matrix[$i][$j] = $comparison->value;
                     } else {
-                        // Try reverse
+                        // Try reverse (B compared to A)
                         $reverse = $comparisons->first(function ($c) use ($criteriaIds, $i, $j) {
-                            return $c->criteria_i_id == $criteriaIds[$j] && $c->criteria_j_id == $criteriaIds[$i];
+                            return $c->node_a_id == $criteriaIds[$j] && $c->node_b_id == $criteriaIds[$i];
                         });
                         $matrix[$i][$j] = $reverse ? (1 / $reverse->value) : 1;
                     }
@@ -245,8 +348,8 @@ class AhpController extends Controller
                 'id' => Str::ulid(),
                 'ahp_model_id' => $ahpModel->id,
                 'criteria_node_id' => $criteriaId,
-                'local_weight' => $weights[$index],
-                'global_weight' => $weights[$index], // For root level, local = global
+                'weight' => $weights[$index],
+                'level' => 'criteria',
             ]);
         }
 
@@ -282,6 +385,40 @@ class AhpController extends Controller
         ]);
 
         return back()->with('success', 'Model AHP berhasil difinalisasi.');
+    }
+
+    public function regenerateComparisons(Request $request, AhpModel $ahpModel)
+    {
+        if ($ahpModel->status === 'finalized') {
+            return back()->with('error', 'Model AHP yang sudah final tidak dapat diubah.');
+        }
+
+        // Delete existing comparisons first
+        AhpComparison::where('ahp_model_id', $ahpModel->id)->delete();
+
+        // Generate new comparison pairs
+        $this->generateComparisonPairs($ahpModel);
+
+        // Check if comparisons were generated
+        $count = AhpComparison::where('ahp_model_id', $ahpModel->id)->count();
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'regenerate_ahp_comparisons',
+            'entity_type' => AhpModel::class,
+            'entity_id' => $ahpModel->id,
+            'description' => "Regenerated {$count} comparison pairs",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        if ($count > 0) {
+            return back()->with('success', "Berhasil generate {$count} pasangan perbandingan.");
+        } else {
+            return back()->with('error', 'Tidak ada kriteria untuk dibandingkan. Pastikan criteria set memiliki minimal 2 kriteria.');
+        }
     }
 
     public function reset(AhpModel $ahpModel)

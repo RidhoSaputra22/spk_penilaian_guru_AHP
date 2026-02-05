@@ -19,7 +19,7 @@ class TeacherPeriodResult extends Model
     ];
 
     protected $casts = [
-        'final_score' => 'decimal:4',
+        'final_score' => 'decimal:2',
         'details' => 'array',
     ];
 

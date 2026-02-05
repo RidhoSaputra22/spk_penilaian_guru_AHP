@@ -41,30 +41,58 @@ class DemoAssessmentsSeeder extends Seeder
         }
 
         DB::transaction(function () use ($period, $assignment, $assessors, $teachers, $items) {
-            foreach ($teachers as $teacher) {
+            foreach ($teachers as $index => $teacher) {
                 $assessor = $assessors->random();
+
+                // Buat variasi status untuk testing:
+                // - 5 pertama: finalized (selesai)
+                // - 3 berikutnya: in_progress (sedang dikerjakan)
+                // - sisanya: draft (belum dikerjakan)
+                if ($index < 5) {
+                    $status = 'finalized';
+                    $startedAt = now()->subDays(2);
+                    $submittedAt = now()->subDay();
+                    $finalizedAt = now();
+                } elseif ($index < 8) {
+                    $status = 'in_progress';
+                    $startedAt = now()->subDays(1);
+                    $submittedAt = null;
+                    $finalizedAt = null;
+                } else {
+                    $status = 'draft';
+                    $startedAt = null;
+                    $submittedAt = null;
+                    $finalizedAt = null;
+                }
 
                 $assessment = Assessment::create([
                     'assessment_period_id' => $period->id,
                     'assignment_id' => $assignment->id,
                     'teacher_profile_id' => $teacher->id,
                     'assessor_profile_id' => $assessor->id,
-                    'status' => 'finalized',
-                    'started_at' => now()->subDays(2),
-                    'submitted_at' => now()->subDay(),
-                    'finalized_at' => now(),
+                    'status' => $status,
+                    'started_at' => $startedAt,
+                    'submitted_at' => $submittedAt,
+                    'finalized_at' => $finalizedAt,
                     'meta' => ['demo' => true],
                 ]);
 
-                // status log: draft -> finalized
-                AssessmentStatusLog::create([
-                    'assessment_id' => $assessment->id,
-                    'from_status' => 'draft',
-                    'to_status' => 'finalized',
-                    'changed_by' => $assessor->user_id, // user id
-                    'reason' => null,
-                    'created_at' => now(),
-                ]);
+                // status log: draft -> finalized (only for finalized)
+                if ($status === 'finalized') {
+                    AssessmentStatusLog::create([
+                        'assessment_id' => $assessment->id,
+                        'from_status' => 'draft',
+                        'to_status' => 'finalized',
+                        'changed_by' => $assessor->user_id, // user id
+                        'reason' => null,
+                        'created_at' => now(),
+                    ]);
+                }
+
+                // Skip filling items for draft assessments
+                if ($status === 'draft') {
+                    continue;
+                }
 
                 foreach ($items as $item) {
                     $v = random_int(1, 4);
