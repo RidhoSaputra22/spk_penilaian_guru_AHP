@@ -96,9 +96,21 @@
         }
         .grid-3-item {
             display: table-cell;
-            width: 33.33%;
+            width: 25%;
             text-align: center;
             padding: 10px;
+        }
+        .bar-container {
+            background: #e5e7eb;
+            height: 16px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+        .bar-fill {
+            background: #6366f1;
+            height: 100%;
+            border-radius: 4px;
         }
     </style>
 </head>
@@ -135,15 +147,15 @@
         <div class="info-grid">
             <div class="info-row">
                 <div class="info-label">Nama Periode</div>
-                <div class="info-value">{{ $result->period->name ?? '-' }}</div>
+                <div class="info-value">{{ $period->name ?? '-' }}</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Tahun Akademik</div>
-                <div class="info-value">{{ $result->period->academic_year ?? '-' }}</div>
+                <div class="info-value">{{ $period->academic_year ?? '-' }}</div>
             </div>
             <div class="info-row">
                 <div class="info-label">Semester</div>
-                <div class="info-value">{{ $result->period->semester ?? '-' }}</div>
+                <div class="info-value">{{ $period->semester ?? '-' }}</div>
             </div>
         </div>
     </div>
@@ -157,11 +169,15 @@
             </div>
             <div class="grid-3-item">
                 <div style="font-size: 24px; font-weight: bold;">{{ $result->rank ?? '-' }}</div>
-                <div style="color: #666;">Ranking</div>
+                <div style="color: #666;">Ranking{{ $totalTeachers ? ' / ' . $totalTeachers : '' }}</div>
             </div>
             <div class="grid-3-item">
-                <div style="font-size: 24px; font-weight: bold;">{{ $result->grade ?? '-' }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ $grade ?? '-' }}</div>
                 <div style="color: #666;">Grade</div>
+            </div>
+            <div class="grid-3-item">
+                <div style="font-size: 24px; font-weight: bold;">{{ $totalTeachers ?? '-' }}</div>
+                <div style="color: #666;">Total Guru</div>
             </div>
         </div>
     </div>
@@ -172,21 +188,27 @@
         <table>
             <thead>
                 <tr>
+                    <th style="width: 5%;">No</th>
                     <th>Kriteria</th>
-                    <th style="text-align: center;">Bobot</th>
-                    <th style="text-align: center;">Skor</th>
-                    <th style="text-align: center;">Skor Terbobot</th>
+                    <th style="text-align: center; width: 12%;">Bobot</th>
+                    <th style="text-align: center; width: 12%;">Skor</th>
+                    <th style="text-align: center; width: 15%;">Skor Terbobot</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($criteriaScores as $criteria => $data)
+                @foreach($criteriaScores as $index => $data)
                     <tr>
-                        <td>{{ $criteria }}</td>
-                        <td style="text-align: center;">{{ isset($data['weight']) ? number_format($data['weight'] * 100, 1) . '%' : '-' }}</td>
-                        <td style="text-align: center;">{{ number_format($data['score'] ?? 0, 2) }}</td>
-                        <td style="text-align: center;">{{ isset($data['weighted_score']) ? number_format($data['weighted_score'], 2) : '-' }}</td>
+                        <td style="text-align: center;">{{ $index + 1 }}</td>
+                        <td>{{ $data['name'] }}</td>
+                        <td style="text-align: center;">{{ number_format($data['weight'] * 100, 1) }}%</td>
+                        <td style="text-align: center;">{{ number_format($data['raw_score'], 2) }}</td>
+                        <td style="text-align: center;">{{ number_format($data['weighted_score'], 2) }}</td>
                     </tr>
                 @endforeach
+                <tr style="font-weight: bold; background: #f0f0f0;">
+                    <td colspan="4" style="text-align: right;">Total Skor Akhir</td>
+                    <td style="text-align: center;">{{ number_format($result->final_score ?? 0, 2) }}</td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -198,18 +220,20 @@
         <table>
             <thead>
                 <tr>
-                    <th>No</th>
+                    <th style="width: 5%;">No</th>
                     <th>Nama Penilai</th>
                     <th>Jabatan</th>
+                    <th>Status</th>
                     <th>Tanggal Penilaian</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($assessments as $index => $assessment)
                     <tr>
-                        <td>{{ $index + 1 }}</td>
+                        <td style="text-align: center;">{{ $index + 1 }}</td>
                         <td>{{ $assessment->assessor->user->name ?? '-' }}</td>
                         <td>{{ $assessment->assessor->title ?? 'Tim Penilai' }}</td>
+                        <td>{{ $assessment->status === 'finalized' ? 'Selesai' : ucfirst($assessment->status) }}</td>
                         <td>{{ $assessment->submitted_at?->format('d M Y') ?? '-' }}</td>
                     </tr>
                 @endforeach

@@ -85,8 +85,13 @@ class KpiAssignmentController extends Controller
             ->get()
             ->mapWithKeys(fn ($p) => [$p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"]);
 
-        $formVersions = KpiFormAssignment::get()
-            ->mapWithKeys(fn ($f) => [$f->id => "{$f->formVersion->template->name} (v{$f->formVersion->version})"]);
+        // Get unique form versions (group by form_version_id to avoid duplicates)
+        $formVersions = KpiFormAssignment::with(['formVersion.template', 'period'])
+            ->get()
+            ->unique('form_version_id')
+            ->mapWithKeys(fn ($f) => [
+                $f->id => "{$f->formVersion->template->name} (v{$f->formVersion->version})",
+            ]);
 
         $teachers = TeacherProfile::with('user')
             ->get()
@@ -176,20 +181,25 @@ class KpiAssignmentController extends Controller
     {
         // Periods
         $periods = AssessmentPeriod::orderBy('academic_year', 'desc')
+            ->where('status', 'open')
             ->orderBy('semester', 'desc')
             ->get()
-            ->mapWithKeys(fn($p) => [$p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"]);
+            ->mapWithKeys(fn ($p) => [$p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"]);
 
         // KPI Form Assignments (published forms assigned to periods)
-        $formVersions = KpiFormAssignment::with('formVersion.template')
+        // Get unique form versions to avoid duplicates
+        $formVersions = KpiFormAssignment::with(['formVersion.template', 'period'])
             ->get()
-            ->mapWithKeys(fn($f) => [$f->id => "{$f->formVersion->template->name} (v{$f->formVersion->version})"]);
+            ->unique('form_version_id')
+            ->mapWithKeys(fn ($f) => [
+                $f->id => "{$f->formVersion->template->name} (v{$f->formVersion->version})",
+            ]);
 
         // Teachers with user info
         $teachers = TeacherProfile::with('user')
-            ->whereHas('user', fn($q) => $q->where('status', 'active'))
+            ->whereHas('user', fn ($q) => $q->where('status', 'active'))
             ->get()
-            ->map(fn($t) => [
+            ->map(fn ($t) => [
                 'id' => $t->id,
                 'name' => $t->user->name,
                 'employee_no' => $t->employee_no,
@@ -199,9 +209,9 @@ class KpiAssignmentController extends Controller
 
         // Assessors
         $assessors = AssessorProfile::with('user')
-            ->whereHas('user', fn($q) => $q->where('status', 'active'))
+            ->whereHas('user', fn ($q) => $q->where('status', 'active'))
             ->get()
-            ->mapWithKeys(fn($a) => [$a->id => $a->user->name]);
+            ->mapWithKeys(fn ($a) => [$a->id => $a->user->name]);
 
         // Teacher Groups for quick selection
         $teacherGroups = TeacherGroup::with('teachers')->get();
@@ -211,8 +221,8 @@ class KpiAssignmentController extends Controller
         $existingAssignments = Assessment::select('assessment_period_id', 'assessor_profile_id', 'teacher_profile_id')
             ->get()
             ->groupBy('assessment_period_id')
-            ->map(fn($group) => $group->groupBy('assessor_profile_id')
-                ->map(fn($subGroup) => $subGroup->pluck('teacher_profile_id')->toArray())
+            ->map(fn ($group) => $group->groupBy('assessor_profile_id')
+                ->map(fn ($subGroup) => $subGroup->pluck('teacher_profile_id')->toArray())
             )
             ->toArray();
 
@@ -261,6 +271,7 @@ class KpiAssignmentController extends Controller
                     $skipped++;
                     $teacher = TeacherProfile::with('user')->find($teacherId);
                     $skippedNames[] = $teacher->user->name ?? $teacherId;
+
                     continue;
                 }
 
@@ -282,13 +293,13 @@ class KpiAssignmentController extends Controller
             return redirect()
                 ->route('admin.kpi-assignments.bulk-create')
                 ->withInput()
-                ->with('error', 'Gagal membuat penugasan: ' . $e->getMessage());
+                ->with('error', 'Gagal membuat penugasan: '.$e->getMessage());
         }
 
         // Build success message
         $message = "Berhasil menugaskan {$created} guru.";
         if ($skipped > 0) {
-            $message .= " {$skipped} guru dilewati karena sudah ditugaskan sebelumnya (" . implode(', ', $skippedNames) . ").";
+            $message .= " {$skipped} guru dilewati karena sudah ditugaskan sebelumnya (".implode(', ', $skippedNames).').';
         }
 
         return redirect()

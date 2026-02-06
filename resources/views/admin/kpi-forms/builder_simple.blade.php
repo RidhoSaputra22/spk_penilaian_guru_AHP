@@ -28,7 +28,7 @@
                     </svg>
                     Preview
                 </x-ui.button>
-                <x-ui.button type="ghost" href="{{ route('admin.kpi-forms.edit', $template) }}">
+                <x-ui.button type="ghost" href="{{ route('admin.kpi-forms.index') }}">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -84,14 +84,14 @@
                             Tambah Seksi
                         </x-ui.button>
                         @else
-                    <x-ui.badge type="warning" size="sm">
-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                        Form Published (Read-only)
-                    </x-ui.badge>
-                    @endif
+                        <x-ui.badge type="warning" size="sm">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                            Form Published (Read-only)
+                        </x-ui.badge>
+                        @endif
                     </div>
                 </div>
 
@@ -114,7 +114,8 @@
                                     {{ $section->criteriaNode->name }}
                                     @if($ahpWeights->has($section->criteriaNode->id))
                                     <span class="badge badge-accent badge-xs ml-1">
-                                        Bobot: {{ number_format($ahpWeights->get($section->criteriaNode->id)->weight * 100, 1) }}%
+                                        Bobot:
+                                        {{ number_format($ahpWeights->get($section->criteriaNode->id)->weight * 100, 1) }}%
                                     </span>
                                     @endif
                                 </p>
@@ -206,7 +207,8 @@
                                     </x-ui.badge>
                                     @if($ahpWeights->has($item->criteriaNode->id))
                                     <x-ui.badge type="accent" size="xs">
-                                        Bobot: {{ number_format($ahpWeights->get($item->criteriaNode->id)->weight * 100, 1) }}%
+                                        Bobot:
+                                        {{ number_format($ahpWeights->get($item->criteriaNode->id)->weight * 100, 1) }}%
                                     </x-ui.badge>
                                     @endif
                                     @endif
@@ -316,7 +318,8 @@
                         <p class="text-sm font-medium text-primary">{{ $criteriaSet->name }}</p>
                         @else
                         <p class="text-sm text-base-content/50">Belum terhubung</p>
-                        <a href="{{ route('admin.kpi-forms.edit', $template) }}" class="text-xs link link-primary">Hubungkan sekarang →</a>
+                        <a href="{{ route('admin.kpi-forms.edit', $template) }}"
+                            class="text-xs link link-primary">Hubungkan sekarang →</a>
                         @endif
                     </div>
                 </div>
@@ -333,20 +336,25 @@
                             <span class="badge badge-primary badge-xs">{{ $ahpWeight->criteriaNode->code }}</span>
                             <span class="text-sm">{{ $ahpWeight->criteriaNode->name }}</span>
                         </div>
-                        <span class="font-bold text-sm text-accent">{{ number_format($ahpWeight->weight * 100, 1) }}%</span>
+                        <span
+                            class="font-bold text-sm text-accent">{{ number_format($ahpWeight->weight * 100, 1) }}%</span>
                     </div>
                     @endif
                     @endforeach
-                    <div class="flex items-center justify-between p-2 bg-accent/10 rounded-lg border border-accent/30 mt-2">
+                    <div
+                        class="flex items-center justify-between p-2 bg-accent/10 rounded-lg border border-accent/30 mt-2">
                         <span class="text-sm font-medium">Total Bobot</span>
-                        <span class="font-bold text-sm text-accent">{{ number_format($ahpWeights->sum('weight') * 100, 1) }}%</span>
+                        <span
+                            class="font-bold text-sm text-accent">{{ number_format($ahpWeights->sum('weight') * 100, 1) }}%</span>
                     </div>
                 </div>
             </x-ui.card>
             @elseif($criteriaSet && $ahpWeights->isEmpty())
             <x-ui.card title="Bobot AHP">
                 <x-ui.alert type="warning">
-                    <span>Bobot AHP belum difinalisasi untuk Set Kriteria ini. Silakan finalisasi terlebih dahulu di menu <a href="{{ route('admin.ahp.index') }}" class="link link-primary font-medium">AHP Weighting</a>.</span>
+                    <span>Bobot AHP belum difinalisasi untuk Set Kriteria ini. Silakan finalisasi terlebih dahulu di
+                        menu <a href="{{ route('admin.ahp.index') }}" class="link link-primary font-medium">AHP
+                            Weighting</a>.</span>
                 </x-ui.alert>
             </x-ui.card>
             @endif

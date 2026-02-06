@@ -21,13 +21,13 @@
                     </svg>
                     Kembali
                 </x-ui.button>
-                <x-ui.button type="outline" onclick="window.print()">
+                <!-- <x-ui.button type="outline" onclick="window.print()">
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                     </svg>
                     Cetak
-                </x-ui.button>
+                </x-ui.button> -->
             </div>
         </div>
     </x-slot:header>
@@ -166,7 +166,8 @@
                                 $scaleOption = $item->scale->options->firstWhere('numeric_value', $value->value_number);
                                 @endphp
                                 <div class="flex flex-col items-center">
-                                    <span class="text-xl font-bold text-primary">{{ number_format($value->value_number, 0, ',', '.') }}</span>
+                                    <span
+                                        class="text-xl font-bold text-primary">{{ number_format($value->value_number, 0, ',', '.') }}</span>
                                     @if($scaleOption)
                                     <span class="text-xs text-base-content/60">{{ $scaleOption->label }}</span>
                                     @endif
@@ -203,7 +204,7 @@
     <!-- Status History -->
     @if($assessment->statusLogs->isNotEmpty())
     <x-ui.card title="Riwayat Status" class="mt-6">
-        <ul class="timeline timeline-vertical">
+        <ul class="timeline timeline-horizontal ">
             @foreach($assessment->statusLogs->sortByDesc('created_at') as $log)
             <li>
                 <div class="timeline-start text-sm text-base-content/60">

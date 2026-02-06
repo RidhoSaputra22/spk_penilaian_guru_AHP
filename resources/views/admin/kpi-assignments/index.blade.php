@@ -2,8 +2,8 @@
 
     <div class="space-y-6">
         <!-- Page Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
+        <div class="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+            <div class="flex-1">
                 <h1 class="text-2xl font-bold">Penugasan KPI</h1>
                 <p class="text-base-content/70 mt-1">Kelola penugasan formulir KPI ke guru</p>
             </div>

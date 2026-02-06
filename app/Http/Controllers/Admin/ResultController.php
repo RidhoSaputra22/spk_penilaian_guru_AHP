@@ -135,28 +135,71 @@ class ResultController extends Controller
 
     public function show(TeacherPeriodResult $result)
     {
-        $result->load(['teacher.user', 'period', 'criteriaScores.criteriaNode']);
+        $result->load(['teacher.user', 'periodResult.period', 'criteriaScores.criteriaNode']);
 
-        $rootCriteria = collect();
-        $historicalResults = collect();
+        $period = $result->periodResult?->period;
 
-        if ($result->period?->ahpModel?->criteria_set_id) {
-            $rootCriteria = CriteriaNode::where('criteria_set_id', $result->period->ahpModel->criteria_set_id)
-                ->whereNull('parent_id')
-                ->orderBy('sort_order')
+        // Get criteria nodes (actual criteria, not goal nodes)
+        $criteriaScores = collect();
+        if ($period?->ahpModel?->criteria_set_id) {
+            $goal = CriteriaNode::where('criteria_set_id', $period->ahpModel->criteria_set_id)
+                ->where('node_type', 'goal')
+                ->first();
+
+            if ($goal) {
+                $criteria = CriteriaNode::where('parent_id', $goal->id)
+                    ->where('node_type', 'criteria')
+                    ->orderBy('sort_order')
+                    ->get();
+
+                // Map criteria to their scores
+                $criteriaScores = $criteria->map(function ($criterion) use ($result) {
+                    $score = $result->criteriaScores->firstWhere('criteria_node_id', $criterion->id);
+                    return [
+                        'name' => $criterion->name,
+                        'code' => $criterion->code ?? '',
+                        'raw_score' => (float) ($score->raw_score ?? 0),
+                        'weight' => (float) ($score->weight ?? 0),
+                        'weighted_score' => (float) ($score->weighted_score ?? 0),
+                    ];
+                });
+            }
+        }
+
+        // Grade
+        $grade = $this->determineGrade((float) $result->final_score);
+
+        // Total teachers in same period
+        $totalTeachers = TeacherPeriodResult::where('period_result_id', $result->period_result_id)->count();
+
+        // Get assessments for this teacher in this period
+        $assessments = collect();
+        if ($period) {
+            $assessments = Assessment::with(['assessor.user'])
+                ->where('teacher_profile_id', $result->teacher_profile_id)
+                ->where('assessment_period_id', $period->id)
+                ->whereIn('status', ['submitted', 'finalized'])
                 ->get();
         }
 
         // Get historical results for this teacher
         $historicalResults = TeacherPeriodResult::where('teacher_profile_id', $result->teacher_profile_id)
-            ->with('period')
+            ->with('periodResult.period')
             ->orderBy('created_at', 'desc')
             ->limit(5)
-            ->get();
+            ->get()
+            ->map(function ($r) {
+                $r->grade = $this->determineGrade((float) $r->final_score);
+                return $r;
+            });
 
         return view('admin.results.show', compact(
             'result',
-            'rootCriteria',
+            'period',
+            'criteriaScores',
+            'grade',
+            'totalTeachers',
+            'assessments',
             'historicalResults'
         ));
     }

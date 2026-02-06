@@ -50,12 +50,15 @@
         <!-- Results Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             @foreach($results as $result)
+                @php
+                    $period = $result->periodResult?->period;
+                @endphp
                 <x-ui.card class="hover:shadow-2xl transition-shadow">
                     <div class="flex items-center justify-between mb-4">
                         <div>
-                            <h3 class="text-lg font-bold">{{ $result->period->name ?? '-' }}</h3>
+                            <h3 class="text-lg font-bold">{{ $period->name ?? '-' }}</h3>
                             <p class="text-sm text-base-content/60">
-                                {{ $result->period->academic_year ?? '' }}
+                                {{ $period->academic_year ?? '' }} - {{ $period->semester ?? '' }}
                             </p>
                         </div>
                         <x-ui.badge type="success" size="sm">Final</x-ui.badge>
@@ -68,14 +71,30 @@
                         <p class="mt-2 text-sm text-base-content/60">Skor Akhir</p>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-4 text-center border-t border-base-200 pt-4">
+                    <div class="grid grid-cols-3 gap-2 text-center border-t border-base-200 pt-4">
                         <div>
                             <p class="text-2xl font-bold text-secondary">{{ $result->rank ?? '-' }}</p>
                             <p class="text-xs text-base-content/60">Ranking</p>
+                            @if($result->total_teachers)
+                                <p class="text-xs text-base-content/40">/ {{ $result->total_teachers }}</p>
+                            @endif
                         </div>
                         <div>
-                            <p class="text-2xl font-bold">{{ $result->grade ?? '-' }}</p>
+                            @php
+                                $gradeColor = match($result->grade ?? '') {
+                                    'A' => 'text-success',
+                                    'B' => 'text-info',
+                                    'C' => 'text-warning',
+                                    'D' => 'text-error',
+                                    default => 'text-base-content',
+                                };
+                            @endphp
+                            <p class="text-2xl font-bold {{ $gradeColor }}">{{ $result->grade ?? '-' }}</p>
                             <p class="text-xs text-base-content/60">Grade</p>
+                        </div>
+                        <div>
+                            <p class="text-2xl font-bold">{{ $result->total_teachers ?? '-' }}</p>
+                            <p class="text-xs text-base-content/60">Total Guru</p>
                         </div>
                     </div>
 

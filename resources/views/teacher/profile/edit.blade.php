@@ -17,43 +17,21 @@
                 Perbarui informasi profil akun Anda.
             </p>
 
-            <form action="{{ route('teacher.profile.update') }}" method="POST">
+            <form action="{{ route('teacher.profile.update') }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
 
-                <x-ui.input
-                    name="name"
-                    label="Nama Lengkap"
-                    :value="$user->name"
-                    :error="$errors->first('name')"
-                    required
-                />
+                <x-ui.input name="name" label="Nama Lengkap" :value="$user->name" :error="$errors->first('name')"
+                    required />
 
-                <x-ui.input
-                    name="email"
-                    label="Email"
-                    type="email"
-                    :value="$user->email"
-                    disabled
-                    helpText="Email tidak dapat diubah"
-                />
+                <x-ui.input name="email" label="Email" type="email" :value="$user->email" disabled
+                    helpText="Email tidak dapat diubah" />
 
                 @if($teacherProfile)
-                    <x-ui.input
-                        name="employee_no"
-                        label="NIP/NIK"
-                        :value="$teacherProfile->employee_no"
-                        disabled
-                        helpText="NIP/NIK dikelola oleh admin"
-                    />
+                <x-ui.input name="employee_no" label="NIP/NIK" :value="$teacherProfile->employee_no" disabled
+                    helpText="NIP/NIK dikelola oleh admin" />
 
-                    <x-ui.input
-                        name="subject"
-                        label="Mata Pelajaran"
-                        :value="$teacherProfile->subject"
-                        disabled
-                        helpText="Mata pelajaran dikelola oleh admin"
-                    />
+
                 @endif
 
                 <x-slot:actions>
@@ -67,35 +45,20 @@
         <!-- Update Password -->
         <x-ui.card title="Ubah Password">
             <p class="text-sm text-base-content/60 mb-4">
-                Pastikan akun Anda menggunakan password yang kuat untuk keamanan.
+                Perbarui password akun Anda secara berkala untuk menjaga keamanan.
             </p>
-
-            <form action="{{ route('teacher.profile.update-password') }}" method="POST">
+            <form action="{{ route('teacher.profile.update-password') }}" method="POST" class="space-y-4">
                 @csrf
                 @method('PUT')
 
-                <x-ui.input
-                    name="current_password"
-                    label="Password Saat Ini"
-                    type="password"
-                    :error="$errors->first('current_password')"
-                    required
-                />
+                <x-ui.input name="current_password" label="Password Saat Ini" type="password"
+                    :error="$errors->first('current_password')" required />
 
-                <x-ui.input
-                    name="password"
-                    label="Password Baru"
-                    type="password"
-                    :error="$errors->first('password')"
-                    required
-                />
+                <x-ui.input name="password" label="Password Baru" type="password" :error="$errors->first('password')"
+                    required />
 
-                <x-ui.input
-                    name="password_confirmation"
-                    label="Konfirmasi Password Baru"
-                    type="password"
-                    required
-                />
+                <x-ui.input name="password_confirmation" label="Konfirmasi Password Baru" type="password" required />
+
 
                 <x-slot:actions>
                     <x-ui.button type="primary">
@@ -108,7 +71,7 @@
 
     <!-- Account Info -->
     <x-ui.card title="Informasi Akun" class="mt-6">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <p class="text-sm text-base-content/60">Role</p>
                 <p class="font-medium">Guru</p>
@@ -120,6 +83,10 @@
             <div>
                 <p class="text-sm text-base-content/60">Terdaftar Sejak</p>
                 <p class="font-medium">{{ $user->created_at?->format('d M Y') ?? '-' }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-base-content/60">Mata Pelajaran</p>
+                <p class="font-medium">{{ $teacherProfile->subject}}</p>
             </div>
             <div>
                 <p class="text-sm text-base-content/60">Login Terakhir</p>

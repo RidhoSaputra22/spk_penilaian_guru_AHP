@@ -5,6 +5,7 @@
         searchTerm: '',
         selectedTeachers: [],
         filterSubject: '',
+        selectedGroupIds: [],
 
         {{-- Existing assignments data from server --}}
         existingAssignments: @js($existingAssignments),
@@ -80,17 +81,34 @@
         deselectAll() {
             const visibleIds = this.filteredTeachers.map(t => t.id);
             this.selectedTeachers = this.selectedTeachers.filter(id => !visibleIds.includes(id));
+            this.selectedGroupIds = [];
         },
 
-        {{-- Select by group --}}
+        {{-- Select by group (toggle) --}}
         selectGroup(groupId) {
             const group = this.teacherGroups.find(g => g.id === groupId);
             if (!group) return;
-            group.teacher_ids.forEach(tid => {
-                if (!this.isAlreadyAssigned(tid) && !this.selectedTeachers.includes(tid)) {
-                    this.selectedTeachers.push(tid);
-                }
-            });
+
+            // Toggle group in selected groups array
+            const idx = this.selectedGroupIds.indexOf(groupId);
+            if (idx > -1) {
+                // Deselect: remove group and unselect its teachers
+                this.selectedGroupIds.splice(idx, 1);
+                group.teacher_ids.forEach(tid => {
+                    const teacherIdx = this.selectedTeachers.indexOf(tid);
+                    if (teacherIdx > -1) {
+                        this.selectedTeachers.splice(teacherIdx, 1);
+                    }
+                });
+            } else {
+                // Select: add group and select its teachers
+                this.selectedGroupIds.push(groupId);
+                group.teacher_ids.forEach(tid => {
+                    if (!this.isAlreadyAssigned(tid) && !this.selectedTeachers.includes(tid)) {
+                        this.selectedTeachers.push(tid);
+                    }
+                });
+            }
         },
 
         {{-- Get teacher name by id --}}
@@ -148,8 +166,8 @@
         </div>
 
         <!-- Progress Steps -->
-        <div class="flex items-center justify-center gap-2">
-            <div class="flex items-center gap-2">
+        <div class="flex items-center justify-end gap-2">
+            <div class="flex  items-center gap-2">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-colors"
                     :class="step >= 1 ? 'bg-primary text-primary-content' : 'bg-base-300 text-base-content/50'">
                     1
@@ -171,13 +189,14 @@
         </div>
 
         <!-- ========== STEP 1: Configuration ========== -->
-        <div x-show="step === 1" x-transition>
+        <div x-cloak x-show="step === 1" x-transition>
             <x-ui.card>
                 <h2 class="text-lg font-bold mb-4 flex items-center gap-2">
                     <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     Konfigurasi Penugasan
                 </h2>
@@ -186,36 +205,39 @@
                     <!-- Periode Penilaian -->
                     <div>
                         <label class="label">
-                            <span class="label-text font-semibold">Periode Penilaian <span class="text-error">*</span></span>
+                            <span class="label-text font-semibold">Periode Penilaian Aktif <span
+                                    class="text-error">*</span></span>
                         </label>
                         <x-ui.select name="assessment_period_id" :options="$periods"
                             selected="{{ old('assessment_period_id') }}" placeholder="Pilih periode" required />
                         @error('assessment_period_id')
-                            <label class="label"><span class="label-text-alt text-error">{{ $message }}</span></label>
+                        <label class="label"><span class="label-text-alt text-error">{{ $message }}</span></label>
                         @enderror
                     </div>
 
                     <!-- Formulir KPI -->
                     <div>
                         <label class="label">
-                            <span class="label-text font-semibold">Formulir KPI <span class="text-error">*</span></span>
+                            <span class="label-text font-semibold">Formulir KPI Aktif<span
+                                    class="text-error">*</span></span>
                         </label>
                         <x-ui.select name="form_version_id" :options="$formVersions"
                             selected="{{ old('form_version_id') }}" placeholder="Pilih formulir KPI" required />
                         @error('form_version_id')
-                            <label class="label"><span class="label-text-alt text-error">{{ $message }}</span></label>
+                        <label class="label"><span class="label-text-alt text-error">{{ $message }}</span></label>
                         @enderror
                     </div>
 
                     <!-- Assessor -->
                     <div class="md:col-span-2">
                         <label class="label">
-                            <span class="label-text font-semibold">Penilai (Assessor) <span class="text-error">*</span></span>
+                            <span class="label-text font-semibold">Penilai (Assessor) <span
+                                    class="text-error">*</span></span>
                         </label>
                         <x-ui.select name="assessor_profile_id" :options="$assessors"
                             selected="{{ old('assessor_profile_id') }}" placeholder="Pilih penilai" required />
                         @error('assessor_profile_id')
-                            <label class="label"><span class="label-text-alt text-error">{{ $message }}</span></label>
+                        <label class="label"><span class="label-text-alt text-error">{{ $message }}</span></label>
                         @enderror
                     </div>
                 </div>
@@ -232,7 +254,7 @@
         </div>
 
         <!-- ========== STEP 2: Select Teachers ========== -->
-        <div x-show="step === 2" x-transition>
+        <div x-cloak x-show="step === 2" x-transition>
             <form method="POST" action="{{ route('admin.kpi-assignments.bulk-store') }}">
                 @csrf
 
@@ -247,18 +269,22 @@
                     <div class="lg:col-span-2 space-y-4">
                         <x-ui.card>
                             <!-- Header with search & filter -->
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                            <div
+                                class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                                 <h2 class="text-lg font-bold flex items-center gap-2">
-                                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor"
+                                        viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
                                     Pilih Guru
-                                    <span class="badge badge-primary badge-sm" x-text="selectedTeachers.length + ' dipilih'"></span>
+                                    <span class="badge badge-primary badge-sm"
+                                        x-text="selectedTeachers.length + ' dipilih'"></span>
                                 </h2>
                                 <button type="button" class="btn btn-ghost btn-sm" @click="goToStep1()">
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M15 19l-7-7 7-7" />
                                     </svg>
                                     Ubah Konfigurasi
                                 </button>
@@ -269,7 +295,8 @@
                                 <div class="flex-1 relative">
                                     <input type="text" x-model="searchTerm" placeholder="Cari nama atau NIP guru..."
                                         class="input input-bordered w-full pl-10">
-                                    <svg class="w-4 h-4 absolute left-3 top-3.5 text-base-content/40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-4 h-4 absolute left-3 top-3.5 text-base-content/40" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
@@ -287,31 +314,34 @@
                                 <span class="text-sm text-base-content/70">Aksi cepat:</span>
                                 <button type="button" class="btn btn-outline btn-xs btn-primary" @click="selectAll()">
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M5 13l4 4L19 7" />
                                     </svg>
                                     Pilih Semua
                                 </button>
                                 <button type="button" class="btn btn-outline btn-xs" @click="deselectAll()">
                                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                     Batal Semua
                                 </button>
 
                                 {{-- Group buttons --}}
                                 @if($teacherGroups->isNotEmpty())
-                                    <div class="divider divider-horizontal mx-0"></div>
-                                    <span class="text-sm text-base-content/70">Grup:</span>
-                                    <template x-for="group in teacherGroups" :key="group.id">
-                                        <button type="button" class="btn btn-outline btn-xs btn-secondary"
-                                            @click="selectGroup(group.id)">
-                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            </svg>
-                                            <span x-text="group.name"></span>
-                                        </button>
-                                    </template>
+                                <div class="divider divider-horizontal mx-0"></div>
+                                <span class="text-sm text-base-content/70">Grup:</span>
+                                <template x-for="group in teacherGroups" :key="group.id">
+                                    <button type="button" class="btn btn-outline btn-xs"
+                                        :class="selectedGroupIds.includes(group.id) ? 'btn-primary' : 'btn-secondary'"
+                                        @click="selectGroup(group.id)">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        </svg>
+                                        <span x-text="group.name"></span>
+                                    </button>
+                                </template>
                                 @endif
                             </div>
 
@@ -333,14 +363,11 @@
                                         :class="{
                                             'bg-primary/5 border-l-4 border-primary': isSelected(teacher.id),
                                             'opacity-50 cursor-not-allowed': isAlreadyAssigned(teacher.id),
-                                        }"
-                                        @click="toggleTeacher(teacher.id)">
+                                        }" @click="toggleTeacher(teacher.id)">
 
                                         {{-- Checkbox --}}
-                                        <input type="checkbox"
-                                            class="checkbox checkbox-primary checkbox-sm"
-                                            :checked="isSelected(teacher.id)"
-                                            :disabled="isAlreadyAssigned(teacher.id)"
+                                        <input type="checkbox" class="checkbox checkbox-primary checkbox-sm"
+                                            :checked="isSelected(teacher.id)" :disabled="isAlreadyAssigned(teacher.id)"
                                             @click.stop="toggleTeacher(teacher.id)">
 
                                         {{-- Hidden form field --}}
@@ -350,8 +377,10 @@
 
                                         {{-- Avatar --}}
                                         <div class="avatar placeholder">
-                                            <div class="bg-primary text-primary-content w-10 h-10 rounded-full flex items-center justify-center">
-                                                <span class="text-sm font-bold" x-text="teacher.name.substring(0, 2).toUpperCase()"></span>
+                                            <div
+                                                class="bg-primary text-primary-content w-10 h-10 rounded-full flex items-center justify-center">
+                                                <span class="text-sm font-bold"
+                                                    x-text="teacher.name.substring(0, 2).toUpperCase()"></span>
                                             </div>
                                         </div>
 
@@ -359,16 +388,20 @@
                                         <div class="flex-1 min-w-0">
                                             <div class="font-semibold text-sm" x-text="teacher.name"></div>
                                             <div class="flex flex-wrap gap-2 mt-0.5">
-                                                <span class="text-xs text-base-content/60" x-text="teacher.employee_no"></span>
-                                                <span class="badge badge-ghost badge-xs" x-text="teacher.subject"></span>
+                                                <span class="text-xs text-base-content/60"
+                                                    x-text="teacher.employee_no"></span>
+                                                <span class="badge badge-ghost badge-xs"
+                                                    x-text="teacher.subject"></span>
                                             </div>
                                         </div>
 
                                         {{-- Status Badge --}}
                                         <div x-show="isAlreadyAssigned(teacher.id)">
                                             <span class="badge badge-warning badge-sm gap-1">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2"
                                                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                                                 </svg>
                                                 Sudah ditugaskan
@@ -385,7 +418,8 @@
 
                                 {{-- Empty State --}}
                                 <div x-show="filteredTeachers.length === 0" class="py-8 text-center">
-                                    <svg class="w-12 h-12 mx-auto text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg class="w-12 h-12 mx-auto text-base-content/30" fill="none"
+                                        stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                             d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                     </svg>
@@ -411,7 +445,8 @@
                             <div class="space-y-3">
                                 <div class="flex justify-between items-center py-2 border-b border-base-200">
                                     <span class="text-sm text-base-content/70">Guru dipilih</span>
-                                    <span class="font-bold text-lg text-primary" x-text="selectedTeachers.length"></span>
+                                    <span class="font-bold text-lg text-primary"
+                                        x-text="selectedTeachers.length"></span>
                                 </div>
                                 <div class="flex justify-between items-center py-2 border-b border-base-200">
                                     <span class="text-sm text-base-content/70">Total guru</span>
@@ -429,11 +464,16 @@
                                 <h4 class="text-sm font-semibold mb-2 text-base-content/70">Guru yang dipilih:</h4>
                                 <div class="max-h-48 overflow-y-auto space-y-1">
                                     <template x-for="tid in selectedTeachers" :key="tid">
-                                        <div class="flex items-center justify-between bg-base-200 rounded-lg px-3 py-1.5">
-                                            <span class="text-xs font-medium truncate" x-text="getTeacherName(tid)"></span>
-                                            <button type="button" class="btn btn-ghost btn-xs" @click="toggleTeacher(tid)" title="Hapus">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                        <div
+                                            class="flex items-center justify-between bg-base-200 rounded-lg px-3 py-1.5">
+                                            <span class="text-xs font-medium truncate"
+                                                x-text="getTeacherName(tid)"></span>
+                                            <button type="button" class="btn btn-ghost btn-xs"
+                                                @click="toggleTeacher(tid)" title="Hapus">
+                                                <svg class="w-3 h-3" fill="none" stroke="currentColor"
+                                                    viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </button>
                                         </div>
@@ -443,7 +483,8 @@
 
                             {{-- Empty state --}}
                             <div x-show="selectedTeachers.length === 0" class="mt-4 text-center py-4">
-                                <svg class="w-10 h-10 mx-auto text-base-content/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-10 h-10 mx-auto text-base-content/20" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                 </svg>
@@ -460,7 +501,8 @@
                                     </svg>
                                     Tugaskan <span x-text="selectedTeachers.length"></span> Guru
                                 </button>
-                                <a href="{{ route('admin.kpi-assignments.index') }}" class="btn btn-ghost w-full btn-sm">
+                                <a href="{{ route('admin.kpi-assignments.index') }}"
+                                    class="btn btn-ghost w-full btn-sm">
                                     Batal
                                 </a>
                             </div>
@@ -469,7 +511,8 @@
                         {{-- Info Card --}}
                         <x-ui.card class="bg-info/5">
                             <div class="flex gap-3">
-                                <svg class="w-5 h-5 text-info shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg class="w-5 h-5 text-info shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                                    viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
@@ -491,7 +534,7 @@
 
         {{-- Validation error for teacher_ids --}}
         @error('teacher_ids')
-            <x-ui.alert type="error">{{ $message }}</x-ui.alert>
+        <x-ui.alert type="error">{{ $message }}</x-ui.alert>
         @enderror
     </div>
 </x-layouts.admin>
