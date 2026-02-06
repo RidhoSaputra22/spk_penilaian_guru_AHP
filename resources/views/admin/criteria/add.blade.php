@@ -57,17 +57,19 @@
 
                     <div class="border-b border-base-200 pb-6">
                         <h3 class="text-lg font-medium mb-4">Informasi Kriteria</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <x-ui.select name="node_type" label="Tipe" :options="[
-                                    'criteria' => 'Kriteria',
-                                    'subcriteria' => 'Sub-kriteria',
-                                    'indicator' => 'Indikator'
-                                ]" selected="{{ old('node_type', request('parent_id') ? 'subcriteria' : 'criteria') }}"
-                                :searchable="false" required />
-                            <x-ui.input name="code" label="Kode" placeholder="C1, C1.1, dll"
-                                value="{{ old('code') }}" />
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="text-sm text-base-content/60">Tipe:</span>
+                            @if(request('parent_id') && isset($parentNode))
+                                <span class="badge badge-secondary">Sub-kriteria</span>
+                                <span class="text-sm text-base-content/60">dari {{ $parentNode->name }}</span>
+                            @else
+                                <span class="badge badge-primary">Kriteria</span>
+                            @endif
                         </div>
-                        <div class="mt-4">
+                        <x-ui.alert type="info" class="mb-4">
+                            <span class="text-sm">Kode akan di-generate otomatis berdasarkan nama set kriteria.</span>
+                        </x-ui.alert>
+                        <div>
                             <x-ui.input name="name" label="Nama" placeholder="Nama kriteria" value="{{ old('name') }}"
                                 required />
                         </div>

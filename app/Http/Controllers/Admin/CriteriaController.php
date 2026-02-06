@@ -94,31 +94,103 @@ class CriteriaController extends Controller
         return view('admin.criteria.add', compact('scoringScales', 'currentSet', 'parentNode'));
     }
 
+    /**
+     * Generate a code prefix from a criteria set name.
+     * Takes the first 3 alphabetic uppercase characters.
+     * e.g. "Kriteria Penilaian Guru" => "KRI", "Arpeggio" => "ARP"
+     */
+    protected function generateCodePrefix(string $name): string
+    {
+        $clean = preg_replace('/[^a-zA-Z]/', '', $name);
+        $prefix = strtoupper(substr($clean, 0, 3));
+
+        // Fallback if name has fewer than 3 letters
+        return str_pad($prefix, 3, 'X');
+    }
+
     public function storeSet(Request $request)
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'criteria' => ['nullable', 'array'],
+            'criteria.*.name' => ['required_with:criteria', 'string', 'max:255'],
+            'criteria.*.description' => ['nullable', 'string'],
+            'criteria.*.sub_criteria' => ['nullable', 'array'],
+            'criteria.*.sub_criteria.*.name' => ['nullable', 'string', 'max:255'],
         ]);
 
         $criteriaSet = CriteriaSet::create([
             'id' => Str::ulid(),
             'institution_id' => auth()->user()->institution_id,
-            ...$validated,
+            'name' => $validated['name'],
+            'description' => $validated['description'] ?? null,
         ]);
 
+        // Generate code prefix from set name (e.g. "Kriteria Penilaian" => "KRI")
+        $prefix = $this->generateCodePrefix($criteriaSet->name);
+
         // Auto-create Goal node for AHP hierarchy
-        CriteriaNode::create([
+        $goalNode = CriteriaNode::create([
             'id' => Str::ulid(),
             'criteria_set_id' => $criteriaSet->id,
             'parent_id' => null,
             'node_type' => 'goal',
-            'code' => 'G1',
+            'code' => $prefix,
             'name' => $criteriaSet->name,
             'description' => 'Goal node untuk ' . $criteriaSet->name,
             'sort_order' => 0,
             'is_active' => true,
         ]);
+
+        // Create criteria and sub-criteria nodes from form data
+        if (! empty($validated['criteria'])) {
+            $criteriaSortOrder = 1;
+
+            foreach ($validated['criteria'] as $criteriaData) {
+                if (empty($criteriaData['name'])) {
+                    continue;
+                }
+
+                $criteriaCode = $prefix . '-' . $criteriaSortOrder;
+
+                $criteriaNode = CriteriaNode::create([
+                    'id' => Str::ulid(),
+                    'criteria_set_id' => $criteriaSet->id,
+                    'parent_id' => $goalNode->id,
+                    'node_type' => 'criteria',
+                    'code' => $criteriaCode,
+                    'name' => $criteriaData['name'],
+                    'description' => $criteriaData['description'] ?? null,
+                    'sort_order' => $criteriaSortOrder++,
+                    'is_active' => true,
+                ]);
+
+                // Create sub-criteria
+                if (! empty($criteriaData['sub_criteria'])) {
+                    $subSortOrder = 1;
+
+                    foreach ($criteriaData['sub_criteria'] as $subData) {
+                        if (empty($subData['name'])) {
+                            continue;
+                        }
+
+                        $subCode = $criteriaCode . '.' . $subSortOrder;
+
+                        CriteriaNode::create([
+                            'id' => Str::ulid(),
+                            'criteria_set_id' => $criteriaSet->id,
+                            'parent_id' => $criteriaNode->id,
+                            'node_type' => 'subcriteria',
+                            'code' => $subCode,
+                            'name' => $subData['name'],
+                            'sort_order' => $subSortOrder++,
+                            'is_active' => true,
+                        ]);
+                    }
+                }
+            }
+        }
 
         // Log activity
         ActivityLog::create([
@@ -221,13 +293,15 @@ class CriteriaController extends Controller
             'criteria_set_id' => ['required', 'exists:criteria_sets,id'],
             'parent_id' => ['nullable', 'exists:criteria_nodes,id'],
             'node_type' => ['nullable', 'string', 'in:criteria,subcriteria,indicator'],
-            'code' => ['required', 'string', 'max:20'],
+            'code' => ['nullable', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'scoring_scale_id' => ['nullable', 'exists:scoring_scales,id'],
         ]);
 
-        // dd($validated);
+        // Get the criteria set for prefix generation
+        $criteriaSetForCode = CriteriaSet::findOrFail($validated['criteria_set_id']);
+        $prefix = $this->generateCodePrefix($criteriaSetForCode->name);
 
         // Get parent_id - if null, auto-assign to Goal node
         $parentId = $validated['parent_id'] ?? null;
@@ -239,15 +313,14 @@ class CriteriaController extends Controller
                 ->first();
 
             if (! $goalNode) {
-                $set = CriteriaSet::findOrFail($validated['criteria_set_id']);
                 $goalNode = CriteriaNode::create([
                     'id' => Str::ulid(),
                     'criteria_set_id' => $validated['criteria_set_id'],
                     'parent_id' => null,
                     'node_type' => 'goal',
-                    'code' => 'G1',
-                    'name' => $set->name,
-                    'description' => 'Goal node untuk ' . $set->name,
+                    'code' => $prefix,
+                    'name' => $criteriaSetForCode->name,
+                    'description' => 'Goal node untuk ' . $criteriaSetForCode->name,
                     'sort_order' => 0,
                     'is_active' => true,
                 ]);
@@ -266,21 +339,36 @@ class CriteriaController extends Controller
             $nodeType = $validated['node_type'] ?? 'indicator';
         }
 
-        // Get max sort order
+        // Get max sort order (used for both ordering and auto-code)
         $maxSort = CriteriaNode::where('criteria_set_id', $validated['criteria_set_id'])
             ->where('parent_id', $parentId)
             ->max('sort_order') ?? 0;
+
+        $nextNumber = $maxSort + 1;
+
+        // Auto-generate code if not provided
+        if (empty($validated['code'])) {
+            if ($nodeType === 'criteria') {
+                $autoCode = $prefix . '-' . $nextNumber;
+            } elseif ($nodeType === 'subcriteria' && $parentNode) {
+                $autoCode = $parentNode->code . '.' . $nextNumber;
+            } else {
+                $autoCode = $prefix . '-' . $nextNumber;
+            }
+        } else {
+            $autoCode = $validated['code'];
+        }
 
         $node = CriteriaNode::create([
             'id' => Str::ulid(),
             'criteria_set_id' => $validated['criteria_set_id'],
             'parent_id' => $parentId,
             'node_type' => $nodeType,
-            'code' => $validated['code'],
+            'code' => $autoCode,
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
             'scoring_scale_id' => $validated['scoring_scale_id'] ?? null,
-            'sort_order' => $maxSort + 1,
+            'sort_order' => $nextNumber,
         ]);
 
         // Log activity
