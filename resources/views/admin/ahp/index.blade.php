@@ -9,7 +9,7 @@
                 <h1 class="text-2xl font-bold">Pembobotan AHP</h1>
                 <p class="text-base-content/60">Atur bobot kriteria menggunakan Analytic Hierarchy Process</p>
             </div>
-            @if(isset($ahpModel) && $ahpModel->status !== 'finalized')
+            @if(isset($ahpModel) && $ahpModel->status !== 'finalized' && count($weights ?? []) > 0)
             <x-ui.button type="success" onclick="document.getElementById('finalize-modal').showModal()">
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -51,11 +51,16 @@
                     <div class="flex items-center gap-4">
                         <!-- Consistency Ratio -->
                         <div class="text-center">
+                            @if($ahpModel->consistency_ratio !== null)
                             <div
-                                class="text-2xl font-bold {{ ($ahpModel->consistency_ratio ?? 1) <= 0.1 ? 'text-success' : 'text-error' }}">
-                                {{ number_format(($ahpModel->consistency_ratio ?? 0) * 100, 2) }}%
+                                class="text-2xl font-bold {{ $ahpModel->consistency_ratio <= 0.1 ? 'text-success' : 'text-error' }}">
+                                {{ number_format($ahpModel->consistency_ratio * 100, 2) }}%
                             </div>
                             <div class="text-xs text-base-content/60">Consistency Ratio</div>
+                            @else
+                            <div class="text-2xl font-bold text-base-content/40">—</div>
+                            <div class="text-xs text-base-content/60">Belum dihitung</div>
+                            @endif
                         </div>
                         <!-- Status -->
                         <div>
@@ -68,7 +73,7 @@
                     </div>
                 </div>
 
-                @if(($ahpModel->consistency_ratio ?? 1) > 0.1 && $ahpModel->status !== 'finalized')
+                @if($ahpModel->consistency_ratio !== null && $ahpModel->consistency_ratio > 0.1 && $ahpModel->status !== 'finalized')
                 <x-ui.alert type="warning" class="mt-4">
                     <strong>Perhatian:</strong> Consistency Ratio melebihi 10%. Mohon perbaiki perbandingan berpasangan
                     agar hasil lebih konsisten.
@@ -84,6 +89,8 @@
                 </x-ui.alert>
                 @endif
 
+                @if(count($comparisons ?? []) > 0)
+                {{-- Comparison form (only shown when comparisons exist) --}}
                 <form method="POST" action="{{ route('admin.ahp.store-comparisons', $ahpModel) }}" id="comparison-form">
                     @csrf
                     <div class="overflow-x-auto">
@@ -96,7 +103,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse($comparisons ?? [] as $comparison)
+                                @foreach($comparisons as $comparison)
                                 <tr>
                                     <td class="font-medium">
                                         {{ $comparison->nodeA?->name ?? 'N/A' }}
@@ -132,36 +139,12 @@
                                         {{ $comparison->nodeB?->name ?? 'N/A' }}
                                     </td>
                                 </tr>
-                                @empty
-                                <tr>
-                                    <td colspan="3" class="text-center py-8">
-                                        <div class="flex flex-col items-center gap-4">
-                                            <p class="text-base-content/60">Tidak ada kriteria untuk dibandingkan</p>
-                                            @if($ahpModel->status !== 'finalized')
-                                            <form method="POST"
-                                                action="{{ route('admin.ahp.regenerate-comparisons', $ahpModel->id) }}"
-                                                onsubmit="console.log('Form submitting...'); return true;">
-                                                @csrf
-                                                <button type="submit" class="btn btn-primary">
-                                                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor"
-                                                        viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                                            stroke-width="2"
-                                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                    </svg>
-                                                    Generate Pasangan Perbandingan
-                                                </button>
-                                            </form>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
 
-                    @if($ahpModel->status !== 'finalized' && count($comparisons ?? []) > 0)
+                    @if($ahpModel->status !== 'finalized')
                     <div class="flex justify-end mt-4">
                         <x-ui.button type="primary" :isSubmit="true">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -173,6 +156,46 @@
                     </div>
                     @endif
                 </form>
+
+                {{-- Regenerate button: separate form OUTSIDE the comparison form --}}
+                @if($ahpModel->status !== 'finalized')
+                <div class="flex justify-start mt-3 pt-3 border-t border-base-200">
+                    <form method="POST" action="{{ route('admin.ahp.regenerate-comparisons', $ahpModel) }}">
+                        @csrf
+                        <x-ui.button type="ghost" size="sm" :isSubmit="true"
+                            onclick="return confirm('Regenerate akan menghapus semua perbandingan yang ada dan membuat ulang. Lanjutkan?')">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Regenerate Pasangan
+                        </x-ui.button>
+                    </form>
+                </div>
+                @endif
+                @else
+                {{-- Empty state: NO comparisons yet - generate button is a standalone form --}}
+                <div class="text-center py-8">
+                    <svg class="w-16 h-16 mx-auto mb-4 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <p class="text-base-content/60 mb-2">Belum ada pasangan perbandingan</p>
+                    <p class="text-sm text-base-content/40 mb-4">Pastikan Set Kriteria "{{ $ahpModel->criteriaSet->name ?? 'N/A' }}" memiliki minimal 2 kriteria di bawah node Goal.</p>
+                    @if($ahpModel->status !== 'finalized')
+                    <form method="POST" action="{{ route('admin.ahp.regenerate-comparisons', $ahpModel) }}">
+                        @csrf
+                        <x-ui.button type="primary" :isSubmit="true">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            Generate Pasangan Perbandingan
+                        </x-ui.button>
+                    </form>
+                    @endif
+                </div>
+                @endif
             </x-ui.card>
 
             <!-- Scale Reference -->
@@ -298,7 +321,7 @@
     <x-ui.modal id="finalize-modal" title="Finalisasi Bobot AHP">
         <p>Anda yakin ingin memfinalisasi bobot AHP untuk periode <strong>{{ $selectedPeriod->name }}</strong>?</p>
 
-        @if(($ahpModel->consistency_ratio ?? 1) > 0.1)
+        @if($ahpModel->consistency_ratio !== null && $ahpModel->consistency_ratio > 0.1)
         <x-ui.alert type="error" class="mt-4">
             <strong>Peringatan:</strong> Consistency Ratio masih di atas 10%
             ({{ number_format($ahpModel->consistency_ratio * 100, 2) }}%).

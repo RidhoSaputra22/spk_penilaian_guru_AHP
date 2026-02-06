@@ -106,8 +106,8 @@
                     </div>
                     <div class="bg-base-100 p-3 rounded-lg border">
                         <p class="text-sm font-medium mb-1">Statistik</p>
-                        <p class="text-sm">Total Kriteria: {{ $criteriaSet->nodes()->whereNull('parent_id')->count() }}</p>
-                        <p class="text-sm">Total Sub-kriteria: {{ $criteriaSet->nodes()->whereNotNull('parent_id')->count() }}</p>
+                        <p class="text-sm">Total Kriteria: {{ $criteriaSet->nodes()->where('node_type', 'criteria')->count() }}</p>
+                        <p class="text-sm">Total Sub-kriteria: {{ $criteriaSet->nodes()->where('node_type', 'subcriteria')->count() }}</p>
                     </div>
                     @if($criteriaSet->locked_at)
                         <div class="alert alert-warning">

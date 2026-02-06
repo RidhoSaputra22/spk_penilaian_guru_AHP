@@ -213,7 +213,8 @@ class AhpController extends Controller
     public function storeComparisons(Request $request, AhpModel $ahpModel)
     {
         if ($ahpModel->status === 'finalized') {
-            return back()->with('error', 'Model AHP sudah finalized, tidak dapat diubah.');
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('error', 'Model AHP sudah finalized, tidak dapat diubah.');
         }
 
         $validated = $request->validate([
@@ -258,9 +259,11 @@ class AhpController extends Controller
         $crPercent = number_format($cr * 100, 2);
 
         if ($cr <= 0.1) {
-            return back()->with('success', "Bobot berhasil dihitung! Consistency Ratio: {$crPercent}% (Valid)");
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('success', "Bobot berhasil dihitung! Consistency Ratio: {$crPercent}% (Valid)");
         } else {
-            return back()->with('warning', "Bobot dihitung, tapi Consistency Ratio: {$crPercent}% melebihi 10%. Perbaiki perbandingan untuk hasil yang lebih konsisten.");
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('warning', "Bobot dihitung, tapi Consistency Ratio: {$crPercent}% melebihi 10%. Perbaiki perbandingan untuk hasil yang lebih konsisten.");
         }
     }
 
@@ -363,7 +366,8 @@ class AhpController extends Controller
     {
         // Check consistency ratio
         if ($ahpModel->consistency_ratio > 0.1) {
-            return back()->with('error', 'Consistency Ratio harus ≤ 0.1 untuk finalisasi.');
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('error', 'Consistency Ratio harus ≤ 0.1 untuk finalisasi.');
         }
 
         $ahpModel->update([
@@ -384,17 +388,23 @@ class AhpController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        return back()->with('success', 'Model AHP berhasil difinalisasi.');
+        return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+            ->with('success', 'Model AHP berhasil difinalisasi.');
     }
 
     public function regenerateComparisons(Request $request, AhpModel $ahpModel)
     {
         if ($ahpModel->status === 'finalized') {
-            return back()->with('error', 'Model AHP yang sudah final tidak dapat diubah.');
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('error', 'Model AHP yang sudah final tidak dapat diubah.');
         }
 
-        // Delete existing comparisons first
+        // Delete existing comparisons and weights first
         AhpComparison::where('ahp_model_id', $ahpModel->id)->delete();
+        AhpWeight::where('ahp_model_id', $ahpModel->id)->delete();
+
+        // Reset consistency ratio
+        $ahpModel->update(['consistency_ratio' => null]);
 
         // Generate new comparison pairs
         $this->generateComparisonPairs($ahpModel);
@@ -415,16 +425,19 @@ class AhpController extends Controller
         ]);
 
         if ($count > 0) {
-            return back()->with('success', "Berhasil generate {$count} pasangan perbandingan.");
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('success', "Berhasil generate {$count} pasangan perbandingan. Silakan atur skala perbandingan dan klik 'Hitung Ulang Bobot'.");
         } else {
-            return back()->with('error', 'Tidak ada kriteria untuk dibandingkan. Pastikan criteria set memiliki minimal 2 kriteria.');
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('error', 'Tidak ada kriteria untuk dibandingkan. Pastikan Set Kriteria memiliki minimal 2 kriteria di bawah node Goal.');
         }
     }
 
     public function reset(AhpModel $ahpModel)
     {
         if ($ahpModel->status === 'finalized') {
-            return back()->with('error', 'Model AHP yang sudah final tidak dapat direset.');
+            return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+                ->with('error', 'Model AHP yang sudah final tidak dapat direset.');
         }
 
         // Delete comparisons and weights
@@ -448,6 +461,7 @@ class AhpController extends Controller
             'user_agent' => request()->userAgent(),
         ]);
 
-        return back()->with('success', 'Model AHP berhasil direset.');
+        return redirect()->route('admin.ahp.index', ['period' => $ahpModel->assessment_period_id])
+            ->with('success', 'Model AHP berhasil direset.');
     }
 }

@@ -31,11 +31,18 @@ class CriteriaController extends Controller
             : $criteriaSets->first();
 
         $criteriaNodes = collect();
+        $goalNode = null;
         if ($currentSet) {
-            $criteriaNodes = $currentSet->nodes()->orderBy('sort_order')->get();
+            $criteriaNodes = $currentSet->nodes()
+                ->where('node_type', '!=', 'goal')
+                ->orderBy('sort_order')
+                ->get();
+            $goalNode = $currentSet->nodes()
+                ->where('node_type', 'goal')
+                ->first();
         }
 
-        return view('admin.criteria.index', compact('criteriaSets', 'currentSet', 'criteriaNodes', 'scoringScales'));
+        return view('admin.criteria.index', compact('criteriaSets', 'currentSet', 'criteriaNodes', 'scoringScales', 'goalNode'));
     }
 
     public function create()
@@ -98,6 +105,19 @@ class CriteriaController extends Controller
             'id' => Str::ulid(),
             'institution_id' => auth()->user()->institution_id,
             ...$validated,
+        ]);
+
+        // Auto-create Goal node for AHP hierarchy
+        CriteriaNode::create([
+            'id' => Str::ulid(),
+            'criteria_set_id' => $criteriaSet->id,
+            'parent_id' => null,
+            'node_type' => 'goal',
+            'code' => 'G1',
+            'name' => $criteriaSet->name,
+            'description' => 'Goal node untuk ' . $criteriaSet->name,
+            'sort_order' => 0,
+            'is_active' => true,
         ]);
 
         // Log activity
@@ -200,6 +220,7 @@ class CriteriaController extends Controller
         $validated = $request->validate([
             'criteria_set_id' => ['required', 'exists:criteria_sets,id'],
             'parent_id' => ['nullable', 'exists:criteria_nodes,id'],
+            'node_type' => ['nullable', 'string', 'in:criteria,subcriteria,indicator'],
             'code' => ['required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
@@ -208,8 +229,42 @@ class CriteriaController extends Controller
 
         // dd($validated);
 
-        // Get parent_id (may be null)
+        // Get parent_id - if null, auto-assign to Goal node
         $parentId = $validated['parent_id'] ?? null;
+
+        if (! $parentId) {
+            // Find or create Goal node for this criteria set
+            $goalNode = CriteriaNode::where('criteria_set_id', $validated['criteria_set_id'])
+                ->where('node_type', 'goal')
+                ->first();
+
+            if (! $goalNode) {
+                $set = CriteriaSet::findOrFail($validated['criteria_set_id']);
+                $goalNode = CriteriaNode::create([
+                    'id' => Str::ulid(),
+                    'criteria_set_id' => $validated['criteria_set_id'],
+                    'parent_id' => null,
+                    'node_type' => 'goal',
+                    'code' => 'G1',
+                    'name' => $set->name,
+                    'description' => 'Goal node untuk ' . $set->name,
+                    'sort_order' => 0,
+                    'is_active' => true,
+                ]);
+            }
+
+            $parentId = $goalNode->id;
+        }
+
+        // Auto-determine node_type based on parent hierarchy
+        $parentNode = CriteriaNode::find($parentId);
+        if ($parentNode && $parentNode->node_type === 'goal') {
+            $nodeType = 'criteria';
+        } elseif ($parentNode && $parentNode->node_type === 'criteria') {
+            $nodeType = 'subcriteria';
+        } else {
+            $nodeType = $validated['node_type'] ?? 'indicator';
+        }
 
         // Get max sort order
         $maxSort = CriteriaNode::where('criteria_set_id', $validated['criteria_set_id'])
@@ -220,6 +275,7 @@ class CriteriaController extends Controller
             'id' => Str::ulid(),
             'criteria_set_id' => $validated['criteria_set_id'],
             'parent_id' => $parentId,
+            'node_type' => $nodeType,
             'code' => $validated['code'],
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,

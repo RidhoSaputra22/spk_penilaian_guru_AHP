@@ -67,7 +67,7 @@
                     <div>
                         <h3 class="text-lg font-bold">{{ $currentSet->name }}</h3>
                         <p class="text-sm text-base-content/60">Version {{ $currentSet->version }} •
-                            {{ $criteriaNodes->count() }} kriteria</p>
+                            {{ $criteriaNodes->where('node_type', 'criteria')->count() }} kriteria</p>
                     </div>
                     <div class="flex gap-2">
                         @if(!$currentSet->locked_at)
@@ -100,7 +100,12 @@
 
                 <!-- Criteria Tree View -->
                 <div class="space-y-2" x-data="{ expandedNodes: [] }">
-                    @forelse($criteriaNodes->where('parent_id', null) ?? [] as $criteria)
+                    @php
+                        $topLevelCriteria = $goalNode
+                            ? $criteriaNodes->where('parent_id', $goalNode->id)
+                            : $criteriaNodes->where('parent_id', null);
+                    @endphp
+                    @forelse($topLevelCriteria ?? [] as $criteria)
                     <div class="border border-base-200 rounded-lg">
                         <!-- Parent Criteria -->
                         <div class="flex items-center justify-between p-4 hover:bg-base-200/50 cursor-pointer"
