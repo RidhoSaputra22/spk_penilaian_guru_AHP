@@ -15,6 +15,7 @@ class KpiFormTemplate extends Model
         'institution_id',
         'name',
         'description',
+        'criteria_set_id',
         'default_scoring_scale_id',
         'created_by',
         'meta',
@@ -27,6 +28,11 @@ class KpiFormTemplate extends Model
     public function institution()
     {
         return $this->belongsTo(Institution::class);
+    }
+
+    public function criteriaSet()
+    {
+        return $this->belongsTo(CriteriaSet::class);
     }
 
     public function defaultScale()

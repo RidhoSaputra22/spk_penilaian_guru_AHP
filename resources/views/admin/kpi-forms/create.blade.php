@@ -63,6 +63,19 @@
                         </div>
                     </div>
 
+                    <!-- Hubungkan dengan Set Kriteria -->
+                    <div class="border-b border-base-200 pb-6">
+                        <h3 class="text-lg font-medium mb-4">Hubungkan dengan Set Kriteria</h3>
+                        <p class="text-sm text-base-content/60 mb-4">
+                            Pilih Set Kriteria untuk menghubungkan form ini dengan bobot AHP. Setelah terhubung, Anda
+                            dapat otomatis membuat seksi dan item dari hierarki kriteria.
+                        </p>
+                        @php
+                            $criteriaSetOptions = $criteriaSets->mapWithKeys(fn($cs) => [$cs->id => $cs->name . ($cs->is_active ? ' (Aktif)' : '')])->toArray();
+                        @endphp
+                        <x-ui.select name="criteria_set_id" label="Set Kriteria (Opsional)" :options="$criteriaSetOptions" selected="{{ old('criteria_set_id') }}" placeholder="-- Pilih Set Kriteria --" />
+                    </div>
+
 
 
                     <x-ui.alert type="info" class="mb-6">

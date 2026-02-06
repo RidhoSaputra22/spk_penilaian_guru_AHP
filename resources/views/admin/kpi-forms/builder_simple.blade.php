@@ -56,16 +56,34 @@
             <x-ui.card>
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-bold">Daftar Seksi</h3>
-                    @if(($version->status ?? 'draft') !== 'published')
-                    <x-ui.button type="primary" size="sm"
-                        href="{{ route('admin.kpi-forms.create-section', $version) }}">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Tambah Seksi
-                    </x-ui.button>
-                    @else
+                    <div class="flex gap-2">
+                        @if(($version->status ?? 'draft') !== 'published')
+                        @if($criteriaSet)
+                        <form method="POST" action="{{ route('admin.kpi-forms.generate-from-criteria', $template) }}"
+                            x-data="{ confirmOverwrite: false }"
+                            onsubmit="return confirm('Generate seksi & item dari Set Kriteria? {{ ($version->sections ?? collect())->count() > 0 ? 'Data yang ada akan ditimpa!' : '' }}')">
+                            @csrf
+                            @if(($version->sections ?? collect())->count() > 0)
+                            <input type="hidden" name="confirm_overwrite" value="1">
+                            @endif
+                            <x-ui.button type="warning" size="sm" :isSubmit="true">
+                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                                Generate dari Kriteria
+                            </x-ui.button>
+                        </form>
+                        @endif
+                        <x-ui.button type="primary" size="sm"
+                            href="{{ route('admin.kpi-forms.create-section', $version) }}">
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                            Tambah Seksi
+                        </x-ui.button>
+                        @else
                     <x-ui.badge type="warning" size="sm">
                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -74,6 +92,7 @@
                         Form Published (Read-only)
                     </x-ui.badge>
                     @endif
+                    </div>
                 </div>
 
                 @forelse($version->sections ?? [] as $section)
@@ -93,6 +112,11 @@
                                 <p class="text-xs text-primary">
                                     <span class="badge badge-primary badge-xs">{{ $section->criteriaNode->code }}</span>
                                     {{ $section->criteriaNode->name }}
+                                    @if($ahpWeights->has($section->criteriaNode->id))
+                                    <span class="badge badge-accent badge-xs ml-1">
+                                        Bobot: {{ number_format($ahpWeights->get($section->criteriaNode->id)->weight * 100, 1) }}%
+                                    </span>
+                                    @endif
                                 </p>
                                 @endif
                                 @if($section->description)
@@ -175,6 +199,16 @@
                                     <x-ui.badge type="ghost" size="xs">{{ $item->min_value ?? '?' }} -
                                         {{ $item->max_value ?? '?' }}
                                     </x-ui.badge>
+                                    @endif
+                                    @if($item->criteriaNode)
+                                    <x-ui.badge type="primary" size="xs">
+                                        {{ $item->criteriaNode->code }}
+                                    </x-ui.badge>
+                                    @if($ahpWeights->has($item->criteriaNode->id))
+                                    <x-ui.badge type="accent" size="xs">
+                                        Bobot: {{ number_format($ahpWeights->get($item->criteriaNode->id)->weight * 100, 1) }}%
+                                    </x-ui.badge>
+                                    @endif
                                     @endif
                                 </div>
                             </div>
@@ -275,8 +309,47 @@
                         <p class="text-sm">
                             {{ ($version->sections ?? collect())->sum(fn($s) => $s->items->count() ?? 0) }} item</p>
                     </div>
+
+                    <div class="bg-base-100 p-3 rounded-lg border">
+                        <p class="text-sm font-medium mb-1">Set Kriteria</p>
+                        @if($criteriaSet)
+                        <p class="text-sm font-medium text-primary">{{ $criteriaSet->name }}</p>
+                        @else
+                        <p class="text-sm text-base-content/50">Belum terhubung</p>
+                        <a href="{{ route('admin.kpi-forms.edit', $template) }}" class="text-xs link link-primary">Hubungkan sekarang →</a>
+                        @endif
+                    </div>
                 </div>
             </x-ui.card>
+
+            <!-- AHP Weights Info -->
+            @if($criteriaSet && $ahpWeights->isNotEmpty())
+            <x-ui.card title="Bobot AHP (Finalized)">
+                <div class="space-y-2">
+                    @foreach($ahpWeights as $nodeId => $ahpWeight)
+                    @if($ahpWeight->criteriaNode)
+                    <div class="flex items-center justify-between p-2 bg-base-100 rounded-lg border">
+                        <div class="flex items-center gap-2">
+                            <span class="badge badge-primary badge-xs">{{ $ahpWeight->criteriaNode->code }}</span>
+                            <span class="text-sm">{{ $ahpWeight->criteriaNode->name }}</span>
+                        </div>
+                        <span class="font-bold text-sm text-accent">{{ number_format($ahpWeight->weight * 100, 1) }}%</span>
+                    </div>
+                    @endif
+                    @endforeach
+                    <div class="flex items-center justify-between p-2 bg-accent/10 rounded-lg border border-accent/30 mt-2">
+                        <span class="text-sm font-medium">Total Bobot</span>
+                        <span class="font-bold text-sm text-accent">{{ number_format($ahpWeights->sum('weight') * 100, 1) }}%</span>
+                    </div>
+                </div>
+            </x-ui.card>
+            @elseif($criteriaSet && $ahpWeights->isEmpty())
+            <x-ui.card title="Bobot AHP">
+                <x-ui.alert type="warning">
+                    <span>Bobot AHP belum difinalisasi untuk Set Kriteria ini. Silakan finalisasi terlebih dahulu di menu <a href="{{ route('admin.ahp.index') }}" class="link link-primary font-medium">AHP Weighting</a>.</span>
+                </x-ui.alert>
+            </x-ui.card>
+            @endif
 
             <!-- Quick Tips -->
             <x-ui.card title="Tips">

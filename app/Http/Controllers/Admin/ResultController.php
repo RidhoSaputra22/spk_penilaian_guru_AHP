@@ -10,6 +10,7 @@ use App\Models\CriteriaNode;
 use App\Models\PeriodResult;
 use App\Models\TeacherCriteriaScore;
 use App\Models\TeacherPeriodResult;
+use App\Services\ResultCalculationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -285,109 +286,14 @@ class ResultController extends Controller
         $period = AssessmentPeriod::with(['ahpModel.weights', 'ahpModel.criteriaSet.nodes'])
             ->findOrFail($validated['period_id']);
 
-        if (! $period->ahpModel || $period->ahpModel->status !== 'finalized') {
-            return back()->with('error', 'Model AHP harus difinalisasi terlebih dahulu.');
+        $service = new ResultCalculationService();
+        $result = $service->calculate($period);
+
+        if (! $result['success']) {
+            return back()->with('error', $result['message']);
         }
 
-        $weights = AhpWeight::where('ahp_model_id', $period->ahpModel->id)
-            ->pluck('global_weight', 'criteria_node_id');
-
-        // Get all completed assessments for this period
-        $assessments = Assessment::where('assessment_period_id', $period->id)
-            ->where('status', 'submitted')
-            ->with('itemValues.formItem')
-            ->get()
-            ->groupBy('teacher_profile_id');
-
-        if ($assessments->isEmpty()) {
-            return back()->with('error', 'Tidak ada penilaian yang sudah selesai.');
-        }
-
-        DB::beginTransaction();
-        try {
-            // Get or create period result
-            $periodResult = PeriodResult::firstOrCreate(
-                ['assessment_period_id' => $period->id],
-                [
-                    'id' => Str::ulid(),
-                    'generated_at' => now(),
-                    'status' => 'generated',
-                ]
-            );
-
-            foreach ($assessments as $teacherId => $teacherAssessments) {
-                // Calculate weighted score for each teacher
-                $totalWeightedScore = 0;
-                $criteriaScores = [];
-
-                foreach ($weights as $criteriaId => $weight) {
-                    // Average score from all assessors for this criteria
-                    // Filter by criteria_node_id through formItem relationship
-                    $avgScore = $teacherAssessments->flatMap->itemValues
-                        ->filter(function ($itemValue) use ($criteriaId) {
-                            return $itemValue->formItem?->criteria_node_id === $criteriaId;
-                        })
-                        ->avg('score_value') ?? 0;
-
-                    $weightedScore = $avgScore * $weight;
-                    $totalWeightedScore += $weightedScore;
-
-                    $criteriaScores[$criteriaId] = [
-                        'raw_score' => $avgScore,
-                        'weight' => $weight,
-                        'weighted_score' => $weightedScore,
-                    ];
-                }
-
-                // Create or update teacher period result
-                $teacherResult = TeacherPeriodResult::updateOrCreate(
-                    [
-                        'period_result_id' => $periodResult->id,
-                        'teacher_profile_id' => $teacherId,
-                    ],
-                    [
-                        'id' => Str::ulid(),
-                        'final_score' => $totalWeightedScore,
-                        'details' => ['calculated_at' => now()->toIso8601String()],
-                    ]
-                );
-
-                // Save criteria scores
-                foreach ($criteriaScores as $criteriaId => $scores) {
-                    TeacherCriteriaScore::updateOrCreate(
-                        [
-                            'teacher_period_result_id' => $teacherResult->id,
-                            'criteria_node_id' => $criteriaId,
-                        ],
-                        [
-                            'id' => Str::ulid(),
-                            'raw_score' => $scores['raw_score'],
-                            'weight' => $scores['weight'],
-                            'weighted_score' => $scores['weighted_score'],
-                        ]
-                    );
-                }
-            }
-
-            // Update ranks
-            $allResults = TeacherPeriodResult::where('period_result_id', $periodResult->id)
-                ->orderByDesc('final_score')
-                ->get();
-
-            foreach ($allResults as $index => $result) {
-                $result->update(['rank' => $index + 1]);
-            }
-
-            $periodResult->update(['generated_at' => now()]);
-
-            DB::commit();
-
-            return back()->with('success', 'Perhitungan hasil penilaian berhasil dilakukan untuk '.$assessments->count().' guru.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            return back()->with('error', 'Terjadi kesalahan: '.$e->getMessage());
-        }
+        return back()->with('success', $result['message']);
     }
 
     protected function determineGrade(float $score): string

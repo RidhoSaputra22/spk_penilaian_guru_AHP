@@ -71,7 +71,26 @@
                     <x-ui.badge type="ghost">
                         {{ ($latestVersion->sections ?? collect())->sum(fn($s) => $s->items->count()) }} Item
                     </x-ui.badge>
+                    @if($criteriaSet)
+                    <x-ui.badge type="primary">Set Kriteria: {{ $criteriaSet->name }}</x-ui.badge>
+                    @endif
                 </div>
+
+                {{-- AHP Weights Summary --}}
+                @if($ahpWeights->isNotEmpty())
+                <div class="mt-4 p-3 bg-accent/10 rounded-lg border border-accent/30">
+                    <p class="text-sm font-medium text-accent mb-2">Bobot AHP (Finalized)</p>
+                    <div class="flex flex-wrap gap-2">
+                        @foreach($ahpWeights as $nodeId => $ahpWeight)
+                        @if($ahpWeight->criteriaNode)
+                        <span class="badge badge-accent badge-sm">
+                            {{ $ahpWeight->criteriaNode->code }}: {{ number_format($ahpWeight->weight * 100, 1) }}%
+                        </span>
+                        @endif
+                        @endforeach
+                    </div>
+                </div>
+                @endif
             </div>
 
             <!-- Alert Info -->
@@ -90,6 +109,11 @@
                         <p class="text-xs mt-1">
                             <span class="badge badge-primary badge-sm">{{ $section->criteriaNode->code }}</span>
                             <span class="text-base-content/60">{{ $section->criteriaNode->name }}</span>
+                            @if($ahpWeights->has($section->criteriaNode->id))
+                            <span class="badge badge-accent badge-sm ml-1">
+                                Bobot AHP: {{ number_format($ahpWeights->get($section->criteriaNode->id)->weight * 100, 1) }}%
+                            </span>
+                            @endif
                         </p>
                         @endif
                         @if($section->description)
@@ -200,8 +224,13 @@
                                     <div class="mt-2">
                                         <x-ui.badge type="ghost" size="xs">{{ $item->field_type }}</x-ui.badge>
                                         @if($item->criteriaNode)
-                                        <x-ui.badge type="info" size="xs">{{ $item->criteriaNode->name ?? '' }}
+                                        <x-ui.badge type="info" size="xs">{{ $item->criteriaNode->code ?? '' }} - {{ $item->criteriaNode->name ?? '' }}
                                         </x-ui.badge>
+                                        @if($ahpWeights->has($item->criteriaNode->id))
+                                        <x-ui.badge type="accent" size="xs">
+                                            Bobot: {{ number_format($ahpWeights->get($item->criteriaNode->id)->weight * 100, 1) }}%
+                                        </x-ui.badge>
+                                        @endif
                                         @endif
                                     </div>
                         </div>

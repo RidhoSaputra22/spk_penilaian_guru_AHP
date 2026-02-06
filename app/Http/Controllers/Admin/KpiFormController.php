@@ -4,11 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Models\AhpWeight;
+use App\Models\CriteriaNode;
 use App\Models\CriteriaSet;
 use App\Models\KpiFormItem;
+use App\Models\KpiFormItemOption;
 use App\Models\KpiFormSection;
 use App\Models\KpiFormTemplate;
 use App\Models\KpiFormVersion;
+use App\Models\ScoringScale;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -40,6 +44,7 @@ class KpiFormController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'criteria_set_id' => ['nullable', 'exists:criteria_sets,id'],
         ]);
 
         $template = KpiFormTemplate::create([
@@ -84,6 +89,7 @@ class KpiFormController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'criteria_set_id' => ['nullable', 'exists:criteria_sets,id'],
         ]);
 
         $template->update($validated);
@@ -146,7 +152,7 @@ class KpiFormController extends Controller
 
     public function builderSimple(KpiFormTemplate $template)
     {
-        $version = $template->versions()->with(['sections.items.options', 'sections.criteriaNode'])->latest('version')->first();
+        $version = $template->versions()->with(['sections.items.options', 'sections.items.criteriaNode', 'sections.criteriaNode'])->latest('version')->first();
 
         // If no version exists, create one
         if (! $version) {
@@ -158,24 +164,52 @@ class KpiFormController extends Controller
             ]);
         }
 
-        $criteriaNodes = \App\Models\CriteriaNode::whereHas('set', function ($q) {
+        $criteriaNodes = CriteriaNode::whereHas('set', function ($q) {
             $q->where('institution_id', auth()->user()->institution_id);
         })->get();
+
+        // Get linked criteria set info
+        $criteriaSet = $template->criteriaSet;
+
+        // Get AHP weights if criteria set is linked to an AHP model
+        $ahpWeights = collect();
+        if ($criteriaSet) {
+            $ahpWeights = AhpWeight::whereHas('model', function ($q) use ($criteriaSet) {
+                $q->where('criteria_set_id', $criteriaSet->id)
+                  ->where('status', 'finalized');
+            })->with('criteriaNode')->get()->keyBy('criteria_node_id');
+        }
 
         return view('admin.kpi-forms.builder_simple', [
             'template' => $template,
             'version' => $version,
             'criteriaNodes' => $criteriaNodes,
+            'criteriaSet' => $criteriaSet,
+            'ahpWeights' => $ahpWeights,
         ]);
     }
 
     public function preview(KpiFormTemplate $template)
     {
-        $latestVersion = $template->versions()->with(['sections.items.options', 'sections.criteriaNode'])->latest('version')->first();
+        $latestVersion = $template->versions()->with(['sections.items.options', 'sections.items.criteriaNode', 'sections.criteriaNode'])->latest('version')->first();
+
+        // Get linked criteria set info
+        $criteriaSet = $template->criteriaSet;
+
+        // Get AHP weights if criteria set is linked
+        $ahpWeights = collect();
+        if ($criteriaSet) {
+            $ahpWeights = AhpWeight::whereHas('model', function ($q) use ($criteriaSet) {
+                $q->where('criteria_set_id', $criteriaSet->id)
+                  ->where('status', 'finalized');
+            })->with('criteriaNode')->get()->keyBy('criteria_node_id');
+        }
 
         return view('admin.kpi-forms.preview', [
             'template' => $template,
             'latestVersion' => $latestVersion,
+            'criteriaSet' => $criteriaSet,
+            'ahpWeights' => $ahpWeights,
         ]);
     }
 
@@ -199,6 +233,127 @@ class KpiFormController extends Controller
         }
 
         return back()->with('success', 'Form KPI berhasil dipublikasi.');
+    }
+
+    public function generateFromCriteria(Request $request, KpiFormTemplate $template)
+    {
+        // Ensure a criteria set is linked
+        if (! $template->criteria_set_id) {
+            return back()->with('error', 'Template belum terhubung dengan Set Kriteria. Silakan edit template dan pilih Set Kriteria terlebih dahulu.');
+        }
+
+        $version = $template->versions()->where('status', 'draft')->latest('version')->first();
+
+        if (! $version) {
+            return back()->with('error', 'Tidak ada versi draft yang tersedia.');
+        }
+
+        // Check if version already has sections
+        if ($version->sections()->count() > 0) {
+            // Check if user confirmed overwrite
+            if (! $request->boolean('confirm_overwrite')) {
+                return back()->with('warning', 'Versi ini sudah memiliki seksi. Centang konfirmasi untuk menimpa data yang ada.');
+            }
+
+            // Delete existing sections & items
+            foreach ($version->sections as $section) {
+                foreach ($section->items as $item) {
+                    $item->options()->delete();
+                }
+                $section->items()->delete();
+            }
+            $version->sections()->delete();
+        }
+
+        $criteriaSet = $template->criteriaSet;
+
+        // Get the goal node
+        $goalNode = $criteriaSet->nodes()
+            ->where('node_type', 'goal')
+            ->first();
+
+        if (! $goalNode) {
+            return back()->with('error', 'Set Kriteria tidak memiliki node Goal.');
+        }
+
+        // Get criteria nodes (children of goal)
+        $criteriaNodes = CriteriaNode::where('parent_id', $goalNode->id)
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->get();
+
+        if ($criteriaNodes->isEmpty()) {
+            return back()->with('error', 'Set Kriteria tidak memiliki kriteria (children of Goal).');
+        }
+
+        $sectionSortOrder = 1;
+
+        foreach ($criteriaNodes as $criterion) {
+            // Create section from criteria node
+            $section = KpiFormSection::create([
+                'id' => Str::ulid(),
+                'form_version_id' => $version->id,
+                'criteria_node_id' => $criterion->id,
+                'title' => $criterion->name,
+                'description' => $criterion->description,
+                'sort_order' => $sectionSortOrder++,
+            ]);
+
+            // Get sub-criteria (children of this criteria)
+            $subCriteria = CriteriaNode::where('parent_id', $criterion->id)
+                ->where('is_active', true)
+                ->orderBy('sort_order')
+                ->get();
+
+            $itemSortOrder = 1;
+
+            if ($subCriteria->isNotEmpty()) {
+                // Create items from sub-criteria nodes
+                foreach ($subCriteria as $subCriterion) {
+                    KpiFormItem::create([
+                        'id' => Str::ulid(),
+                        'section_id' => $section->id,
+                        'criteria_node_id' => $subCriterion->id,
+                        'label' => $subCriterion->name,
+                        'help_text' => $subCriterion->description,
+                        'field_type' => 'numeric',
+                        'is_required' => true,
+                        'min_value' => 1,
+                        'max_value' => 5,
+                        'sort_order' => $itemSortOrder++,
+                    ]);
+                }
+            } else {
+                // No sub-criteria, create a single item for the criteria itself
+                KpiFormItem::create([
+                    'id' => Str::ulid(),
+                    'section_id' => $section->id,
+                    'criteria_node_id' => $criterion->id,
+                    'label' => $criterion->name,
+                    'help_text' => $criterion->description,
+                    'field_type' => 'numeric',
+                    'is_required' => true,
+                    'min_value' => 1,
+                    'max_value' => 5,
+                    'sort_order' => $itemSortOrder++,
+                ]);
+            }
+        }
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'generate_kpi_from_criteria',
+            'entity_type' => KpiFormTemplate::class,
+            'entity_id' => $template->id,
+            'description' => "Generated KPI form sections/items from criteria set: {$criteriaSet->name}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return redirect()->route('admin.kpi-forms.builder', $template)
+            ->with('success', "Berhasil membuat {$criteriaNodes->count()} seksi dari Set Kriteria \"{$criteriaSet->name}\". Anda dapat menyesuaikan tipe field dan detail item sesuai kebutuhan.");
     }
 
     public function publishVersion(Request $request, KpiFormVersion $version)
@@ -357,7 +512,13 @@ class KpiFormController extends Controller
             'textarea' => 'Catatan',
         ];
 
-        return view('admin.kpi-forms.add-item', compact('template', 'version', 'section', 'criteriaOptions', 'fieldTypes'));
+        // Get scoring scales for this institution
+        $scoringScales = ScoringScale::where('institution_id', auth()->user()->institution_id)
+            ->get()
+            ->mapWithKeys(fn ($s) => [$s->id => $s->name])
+            ->toArray();
+
+        return view('admin.kpi-forms.add-item', compact('template', 'version', 'section', 'criteriaOptions', 'fieldTypes', 'scoringScales'));
     }
 
     public function addItem(Request $request, KpiFormVersion $version)
@@ -371,25 +532,68 @@ class KpiFormController extends Controller
             'label' => ['required', 'string', 'max:255'],
             'help_text' => ['nullable', 'string'],
             'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
-
+            'field_type' => ['required', 'in:numeric,dropdown,radio,yesno,textarea'],
+            'min_value' => ['nullable', 'numeric'],
+            'max_value' => ['nullable', 'numeric'],
+            'scoring_scale_id' => ['nullable', 'exists:scoring_scales,id'],
+            'default_value' => ['nullable', 'string', 'max:255'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_required' => ['nullable'],
+            'options' => ['nullable', 'array'],
+            'options.*.label' => ['nullable', 'string', 'max:255'],
+            'options.*.value' => ['nullable', 'string', 'max:255'],
+            'options.*.score_value' => ['nullable', 'numeric'],
         ]);
+
+        // Custom validation for unique option values within the same item
+        if (in_array($validated['field_type'], ['dropdown', 'radio']) && !empty($validated['options'])) {
+            $optionValues = [];
+            foreach ($validated['options'] as $index => $optionData) {
+                if (!empty($optionData['value'])) {
+                    if (in_array($optionData['value'], $optionValues)) {
+                        return back()->withErrors([
+                            "options.{$index}.value" => 'Nilai opsi harus unik dalam satu item.'
+                        ])->withInput();
+                    }
+                    $optionValues[] = $optionData['value'];
+                }
+            }
+        }
 
         $section = KpiFormSection::find($validated['section_id']);
         $maxSortOrder = $section->items()->max('sort_order') ?? 0;
 
-        KpiFormItem::create([
+        $item = KpiFormItem::create([
             'id' => Str::ulid(),
             'section_id' => $validated['section_id'],
             'criteria_node_id' => $validated['criteria_node_id'] ?? null,
             'label' => $validated['label'],
             'help_text' => $validated['help_text'] ?? null,
-            'field_type' => 'numeric',
-            'min_value' => 1, // dari form
-            'max_value' => 4, // dari form
+            'field_type' => $validated['field_type'],
+            'min_value' => $validated['min_value'] ?? null,
+            'max_value' => $validated['max_value'] ?? null,
+            'scoring_scale_id' => $validated['scoring_scale_id'] ?? null,
+            'default_value' => $validated['default_value'] ?? null,
             'is_required' => isset($validated['is_required']),
-            'sort_order' => $maxSortOrder + 1,
+            'sort_order' => $validated['sort_order'] ?? ($maxSortOrder + 1),
         ]);
+
+        // Create options for dropdown/radio field types
+        if (in_array($validated['field_type'], ['dropdown', 'radio']) && !empty($validated['options'])) {
+            $sortOrder = 0;
+            foreach ($validated['options'] as $optionData) {
+                if (!empty($optionData['label']) && !empty($optionData['value'])) {
+                    KpiFormItemOption::create([
+                        'id' => Str::ulid(),
+                        'item_id' => $item->id,
+                        'label' => $optionData['label'],
+                        'value' => $optionData['value'],
+                        'score_value' => $optionData['score_value'] ?? null,
+                        'sort_order' => $sortOrder++,
+                    ]);
+                }
+            }
+        }
 
         ActivityLog::create([
             'id' => Str::ulid(),
@@ -432,7 +636,13 @@ class KpiFormController extends Controller
             'textarea' => 'Catatan',
         ];
 
-        return view('admin.kpi-forms.edit-item', compact('template', 'version', 'item', 'criteriaOptions', 'fieldTypes'));
+        // Get scoring scales for this institution
+        $scoringScales = ScoringScale::where('institution_id', auth()->user()->institution_id)
+            ->get()
+            ->mapWithKeys(fn ($s) => [$s->id => $s->name])
+            ->toArray();
+
+        return view('admin.kpi-forms.edit-item', compact('template', 'version', 'item', 'criteriaOptions', 'fieldTypes', 'scoringScales'));
     }
 
     public function showItem(KpiFormItem $item)
@@ -459,13 +669,87 @@ class KpiFormController extends Controller
             'criteria_node_id' => ['nullable', 'exists:criteria_nodes,id'],
             'min_value' => ['nullable', 'numeric'],
             'max_value' => ['nullable', 'numeric'],
+            'scoring_scale_id' => ['nullable', 'exists:scoring_scales,id'],
+            'default_value' => ['nullable', 'string', 'max:255'],
+            'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_required' => ['nullable'],
+            'options' => ['nullable', 'array'],
+            'options.*.id' => ['nullable', 'string'],
+            'options.*.label' => ['nullable', 'string', 'max:255'],
+            'options.*.value' => ['nullable', 'string', 'max:255'],
+            'options.*.score_value' => ['nullable', 'numeric'],
         ]);
 
+        // Custom validation for unique option values within the same item
+        if (in_array($validated['field_type'], ['dropdown', 'radio']) && !empty($validated['options'])) {
+            $optionValues = [];
+            foreach ($validated['options'] as $index => $optionData) {
+                if (!empty($optionData['value'])) {
+                    if (in_array($optionData['value'], $optionValues)) {
+                        return back()->withErrors([
+                            "options.{$index}.value" => 'Nilai opsi harus unik dalam satu item.'
+                        ])->withInput();
+                    }
+                    $optionValues[] = $optionData['value'];
+                }
+            }
+        }
+
         $item->update([
-            ...$validated,
+            'label' => $validated['label'],
+            'help_text' => $validated['help_text'] ?? null,
+            'field_type' => $validated['field_type'],
+            'criteria_node_id' => $validated['criteria_node_id'] ?? null,
+            'min_value' => $validated['min_value'] ?? null,
+            'max_value' => $validated['max_value'] ?? null,
+            'scoring_scale_id' => $validated['scoring_scale_id'] ?? null,
+            'default_value' => $validated['default_value'] ?? null,
+            'sort_order' => $validated['sort_order'] ?? $item->sort_order,
             'is_required' => isset($validated['is_required']),
         ]);
+
+        // Handle options for dropdown/radio field types
+        if (in_array($validated['field_type'], ['dropdown', 'radio'])) {
+            $submittedOptionIds = [];
+            $sortOrder = 0;
+
+            if (!empty($validated['options'])) {
+                foreach ($validated['options'] as $optionData) {
+                    if (!empty($optionData['label']) && !empty($optionData['value'])) {
+                        if (!empty($optionData['id'])) {
+                            // Update existing option
+                            $option = KpiFormItemOption::find($optionData['id']);
+                            if ($option && $option->item_id === $item->id) {
+                                $option->update([
+                                    'label' => $optionData['label'],
+                                    'value' => $optionData['value'],
+                                    'score_value' => $optionData['score_value'] ?? null,
+                                    'sort_order' => $sortOrder++,
+                                ]);
+                                $submittedOptionIds[] = $option->id;
+                            }
+                        } else {
+                            // Create new option
+                            $newOption = KpiFormItemOption::create([
+                                'id' => Str::ulid(),
+                                'item_id' => $item->id,
+                                'label' => $optionData['label'],
+                                'value' => $optionData['value'],
+                                'score_value' => $optionData['score_value'] ?? null,
+                                'sort_order' => $sortOrder++,
+                            ]);
+                            $submittedOptionIds[] = $newOption->id;
+                        }
+                    }
+                }
+            }
+
+            // Delete options that were removed
+            $item->options()->whereNotIn('id', $submittedOptionIds)->delete();
+        } else {
+            // Remove all options if field type is not dropdown/radio
+            $item->options()->delete();
+        }
 
         return redirect()
             ->route('admin.kpi-forms.builder', $item->section->version->template)

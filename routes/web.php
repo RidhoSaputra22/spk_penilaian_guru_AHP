@@ -105,6 +105,7 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::get('kpi-forms/{template}/builder', [KpiFormController::class, 'builderSimple'])->name('kpi-forms.builder');
     Route::get('kpi-forms/{template}/preview', [KpiFormController::class, 'preview'])->name('kpi-forms.preview');
     Route::post('kpi-forms/{template}/publish', [KpiFormController::class, 'publish'])->name('kpi-forms.publish');
+    Route::post('kpi-forms/{template}/generate-from-criteria', [KpiFormController::class, 'generateFromCriteria'])->name('kpi-forms.generate-from-criteria');
     Route::patch('kpi-forms/versions/{version}/publish', [KpiFormController::class, 'publishVersion'])->name('kpi-forms.publish-version');
     Route::post('kpi-forms/{template}/new-version', [KpiFormController::class, 'createNewVersion'])->name('kpi-forms.new-version');
     Route::delete('kpi-forms/{template}', [KpiFormController::class, 'destroy'])->name('kpi-forms.destroy');
