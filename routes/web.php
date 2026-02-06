@@ -152,6 +152,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::resource('scoring-scales', \App\Http\Controllers\Admin\ScoringScaleController::class);
 
     // KPI Assignments
+    Route::get('kpi-assignments/bulk-create', [\App\Http\Controllers\Admin\KpiAssignmentController::class, 'bulkCreate'])->name('kpi-assignments.bulk-create');
+    Route::post('kpi-assignments/bulk-store', [\App\Http\Controllers\Admin\KpiAssignmentController::class, 'bulkStore'])->name('kpi-assignments.bulk-store');
     Route::resource('kpi-assignments', \App\Http\Controllers\Admin\KpiAssignmentController::class)->except(['edit', 'update']);
 
     // Reports

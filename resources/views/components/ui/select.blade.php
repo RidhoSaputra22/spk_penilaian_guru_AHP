@@ -72,6 +72,7 @@ $normalizedOptions[] = ['value' => $key, 'label' => $option];
                 this.selectedLabel = label;
                 this.open = false;
                 this.searchTerm = '';
+                this.$dispatch('select-change', { name: '{{ $name }}', value: value });
             },
             init() {
                 // Set initial selected label

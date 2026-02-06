@@ -7,8 +7,10 @@ use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
 use App\Models\AssessorProfile;
 use App\Models\KpiFormAssignment;
+use App\Models\TeacherGroup;
 use App\Models\TeacherProfile;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class KpiAssignmentController extends Controller
 {
@@ -165,5 +167,132 @@ class KpiAssignmentController extends Controller
         return redirect()
             ->route('admin.kpi-assignments.index')
             ->with('success', 'Penugasan KPI berhasil dibatalkan');
+    }
+
+    /**
+     * Show the bulk assignment form.
+     */
+    public function bulkCreate()
+    {
+        // Periods
+        $periods = AssessmentPeriod::orderBy('academic_year', 'desc')
+            ->orderBy('semester', 'desc')
+            ->get()
+            ->mapWithKeys(fn($p) => [$p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"]);
+
+        // KPI Form Assignments (published forms assigned to periods)
+        $formVersions = KpiFormAssignment::with('formVersion.template')
+            ->get()
+            ->mapWithKeys(fn($f) => [$f->id => "{$f->formVersion->template->name} (v{$f->formVersion->version})"]);
+
+        // Teachers with user info
+        $teachers = TeacherProfile::with('user')
+            ->whereHas('user', fn($q) => $q->where('status', 'active'))
+            ->get()
+            ->map(fn($t) => [
+                'id' => $t->id,
+                'name' => $t->user->name,
+                'employee_no' => $t->employee_no,
+                'subject' => $t->subject ?? '-',
+                'position' => $t->position ?? '-',
+            ]);
+
+        // Assessors
+        $assessors = AssessorProfile::with('user')
+            ->whereHas('user', fn($q) => $q->where('status', 'active'))
+            ->get()
+            ->mapWithKeys(fn($a) => [$a->id => $a->user->name]);
+
+        // Teacher Groups for quick selection
+        $teacherGroups = TeacherGroup::with('teachers')->get();
+
+        // Existing assignments to flag already-assigned teachers
+        // Grouped by period + assessor: [period_id => [assessor_id => [teacher_id, ...]]]
+        $existingAssignments = Assessment::select('assessment_period_id', 'assessor_profile_id', 'teacher_profile_id')
+            ->get()
+            ->groupBy('assessment_period_id')
+            ->map(fn($group) => $group->groupBy('assessor_profile_id')
+                ->map(fn($subGroup) => $subGroup->pluck('teacher_profile_id')->toArray())
+            )
+            ->toArray();
+
+        return view('admin.kpi-assignments.bulk-create', compact(
+            'periods',
+            'formVersions',
+            'teachers',
+            'assessors',
+            'teacherGroups',
+            'existingAssignments'
+        ));
+    }
+
+    /**
+     * Store bulk assignments.
+     */
+    public function bulkStore(Request $request)
+    {
+        $validated = $request->validate([
+            'assessment_period_id' => 'required|exists:assessment_periods,id',
+            'form_version_id' => 'required|exists:kpi_form_assignments,id',
+            'assessor_profile_id' => 'required|exists:assessor_profiles,id',
+            'teacher_ids' => 'required|array|min:1',
+            'teacher_ids.*' => 'exists:teacher_profiles,id',
+        ], [
+            'teacher_ids.required' => 'Pilih minimal 1 guru untuk ditugaskan.',
+            'teacher_ids.min' => 'Pilih minimal 1 guru untuk ditugaskan.',
+        ]);
+
+        $kpiFormAssignment = KpiFormAssignment::findOrFail($validated['form_version_id']);
+
+        $created = 0;
+        $skipped = 0;
+        $skippedNames = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($validated['teacher_ids'] as $teacherId) {
+                // Check if assignment already exists
+                $exists = Assessment::where('assessment_period_id', $validated['assessment_period_id'])
+                    ->where('teacher_profile_id', $teacherId)
+                    ->where('assessor_profile_id', $validated['assessor_profile_id'])
+                    ->exists();
+
+                if ($exists) {
+                    $skipped++;
+                    $teacher = TeacherProfile::with('user')->find($teacherId);
+                    $skippedNames[] = $teacher->user->name ?? $teacherId;
+                    continue;
+                }
+
+                Assessment::create([
+                    'assessment_period_id' => $validated['assessment_period_id'],
+                    'assignment_id' => $kpiFormAssignment->id,
+                    'teacher_profile_id' => $teacherId,
+                    'assessor_profile_id' => $validated['assessor_profile_id'],
+                    'status' => 'draft',
+                ]);
+
+                $created++;
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return redirect()
+                ->route('admin.kpi-assignments.bulk-create')
+                ->withInput()
+                ->with('error', 'Gagal membuat penugasan: ' . $e->getMessage());
+        }
+
+        // Build success message
+        $message = "Berhasil menugaskan {$created} guru.";
+        if ($skipped > 0) {
+            $message .= " {$skipped} guru dilewati karena sudah ditugaskan sebelumnya (" . implode(', ', $skippedNames) . ").";
+        }
+
+        return redirect()
+            ->route('admin.kpi-assignments.index')
+            ->with('success', $message);
     }
 }
