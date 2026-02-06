@@ -34,4 +34,9 @@ class AssessmentStatusLog extends Model
     {
         return $this->belongsTo(User::class, 'changed_by');
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'changed_by');
+    }
 }

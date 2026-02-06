@@ -180,9 +180,11 @@
                                 </td>
                                 <td>
                                     @switch($assessment->status)
-                                    @case('submitted')
                                     @case('finalized')
-                                    <span class="badge badge-success">Selesai</span>
+                                    <span class="badge badge-primary">Finalized</span>
+                                    @break
+                                    @case('submitted')
+                                    <span class="badge badge-success">Submitted</span>
                                     @break
                                     @case('in_progress')
                                     <span class="badge badge-info">Proses</span>

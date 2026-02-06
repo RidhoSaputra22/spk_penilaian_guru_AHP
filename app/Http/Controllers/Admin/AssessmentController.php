@@ -75,7 +75,7 @@ class AssessmentController extends Controller
             'teacher.user',
             'assessor.user',
             'period',
-            'assignment.formVersion',
+            'assignment.formVersion.sections',
             'itemValues',
             'statusLogs.user',
         ]);
@@ -109,8 +109,8 @@ class AssessmentController extends Controller
             ->with('user')
             ->get()
             ->mapWithKeys(fn ($t) => [
-            $t->id => $t->user->name.' ('.($t->nip ?? '-').')',
-        ]);
+                $t->id => $t->user->name.' ('.($t->nip ?? '-').')',
+            ]);
 
         $assessors = AssessorProfile::whereHas('user', function ($q) use ($institution) {
             $q->where('institution_id', $institution?->id);
@@ -118,8 +118,8 @@ class AssessmentController extends Controller
             ->with('user')
             ->get()
             ->mapWithKeys(fn ($a) => [
-            $a->id => $a->user->name.' ('.($a->employee_id ?? '-').')',
-        ]);
+                $a->id => $a->user->name.' ('.($a->employee_id ?? '-').')',
+            ]);
 
         return view('admin.assessments.create', compact(
             'periods',
@@ -296,5 +296,94 @@ class AssessmentController extends Controller
         ]);
 
         return back()->with('success', "Berhasil membuat {$createdCount} penugasan penilaian.");
+    }
+
+    public function finalize(Request $request, Assessment $assessment)
+    {
+        // Validate assessment can be finalized (must be submitted)
+        if ($assessment->status !== 'submitted') {
+            return back()->with('error', 'Penilaian hanya bisa difinalisasi jika sudah di-submit oleh assessor.');
+        }
+
+        $validated = $request->validate([
+            'admin_notes' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        // Update status to finalized
+        $oldStatus = $assessment->status;
+        $assessment->status = 'finalized';
+        $assessment->finalized_at = now();
+        $assessment->finalized_by = auth()->id();
+        $assessment->admin_notes = $validated['admin_notes'] ?? null;
+        $assessment->save();
+
+        // Log status change
+        \App\Models\AssessmentStatusLog::create([
+            'id' => Str::ulid(),
+            'assessment_id' => $assessment->id,
+            'from_status' => $oldStatus,
+            'to_status' => 'finalized',
+            'changed_by' => auth()->id(),
+            'reason' => 'Finalized by admin: ' . ($validated['admin_notes'] ?? 'No notes'),
+            'created_at' => now(),
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'finalize_assessment',
+            'entity_type' => Assessment::class,
+            'entity_id' => $assessment->id,
+            'description' => "Finalized assessment for {$assessment->teacher->user->name} by {$assessment->assessor->user->name}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return back()->with('success', 'Penilaian berhasil difinalisasi.');
+    }
+
+    public function reopen(Request $request, Assessment $assessment)
+    {
+        // Validate assessment can be reopened (must be submitted or finalized)
+        if (!in_array($assessment->status, ['submitted', 'finalized'])) {
+            return back()->with('error', 'Hanya penilaian yang sudah di-submit atau difinalisasi yang bisa dibuka kembali.');
+        }
+
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:500'],
+        ]);
+
+        // Update status back to in_progress
+        $oldStatus = $assessment->status;
+        $assessment->status = 'in_progress';
+        $assessment->finalized_at = null;
+        $assessment->finalized_by = null;
+        $assessment->save();
+
+        // Log status change
+        \App\Models\AssessmentStatusLog::create([
+            'id' => Str::ulid(),
+            'assessment_id' => $assessment->id,
+            'from_status' => $oldStatus,
+            'to_status' => 'in_progress',
+            'changed_by' => auth()->id(),
+            'reason' => 'Reopened by admin: ' . $validated['reason'],
+            'created_at' => now(),
+        ]);
+
+        // Log activity
+        ActivityLog::create([
+            'id' => Str::ulid(),
+            'user_id' => auth()->id(),
+            'action' => 'reopen_assessment',
+            'entity_type' => Assessment::class,
+            'entity_id' => $assessment->id,
+            'description' => "Reopened assessment for {$assessment->teacher->user->name} by {$assessment->assessor->user->name}. Reason: {$validated['reason']}",
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        return back()->with('success', 'Penilaian berhasil dibuka kembali.');
     }
 }

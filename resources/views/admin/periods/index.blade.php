@@ -82,7 +82,6 @@
                         <th>Semester</th>
                         <th>Status</th>
                         <th>Waktu Penilaian</th>
-                        <th>Progress</th>
                         <th class="text-right">Aksi</th>
                     </tr>
                 </thead>
@@ -124,13 +123,7 @@
                             <span class="text-base-content/40">Belum diatur</span>
                             @endif
                         </td>
-                        <td>
-                            <div class="flex items-center gap-2">
-                                <progress class="progress progress-primary w-20" value="{{ $period->progress ?? 0 }}"
-                                    max="100"></progress>
-                                <span class="text-sm">{{ $period->progress ?? 0 }}%</span>
-                            </div>
-                        </td>
+
                         <td class="text-right">
                             <div class="dropdown dropdown-end">
                                 <label tabindex="0" class="btn btn-ghost btn-sm btn-circle">

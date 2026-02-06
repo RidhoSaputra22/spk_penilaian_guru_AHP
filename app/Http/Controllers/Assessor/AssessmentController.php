@@ -95,7 +95,10 @@ class AssessmentController extends Controller
         $existingAssessment = Assessment::where('assessment_period_id', $period->id)
             ->where('teacher_profile_id', $teacher->id)
             ->where('assessor_profile_id', $assessorProfile->id)
+
             ->first();
+
+        // dd($existingAssessment, $period);
 
         if (! $existingAssessment) {
             abort(403, 'Anda tidak memiliki akses ke penilaian ini.');
@@ -106,44 +109,6 @@ class AssessmentController extends Controller
 
         // dd($existingAssessment, $assignment);
 
-        if (! $assignment) {
-            // Get the first available form template
-            $formTemplate = \App\Models\KpiFormTemplate::first();
-
-            if (! $formTemplate) {
-                return redirect()->route('assessor.assessments.period', $period)
-                    ->with('error', 'Form KPI belum tersedia. Hubungi administrator.');
-            }
-
-            // Get the latest published version
-            $formVersion = $formTemplate->versions()
-                ->where('status', 'published')
-                ->orderByDesc('version')
-                ->first();
-
-            if (! $formVersion) {
-                // If no published version, get the latest version
-                $formVersion = $formTemplate->versions()
-                    ->orderByDesc('version')
-                    ->first();
-            }
-
-            if (! $formVersion) {
-                return redirect()->route('assessor.assessments.period', $period)
-                    ->with('error', 'Versi form KPI belum tersedia. Hubungi administrator.');
-            }
-
-            // Create assignment
-            $assignment = \App\Models\KpiFormAssignment::firstOrCreate([
-                'assessment_period_id' => $period->id,
-                'form_version_id' => $formVersion->id,
-            ]);
-
-            // Update assessment with assignment_id
-            $existingAssessment->update(['assignment_id' => $assignment->id]);
-            $existingAssessment->refresh();
-        }
-
         $assignment->load(['formVersion.sections.items.scale.options', 'formVersion.sections.items.options']);
 
         // Check if period is still open for scoring
@@ -152,27 +117,19 @@ class AssessmentController extends Controller
                 ->with('error', 'Periode penilaian sudah ditutup.');
         }
 
-        // Get or create assessment
-        $assessment = Assessment::firstOrCreate([
-            'assessment_period_id' => $period->id,
-            'assignment_id' => $assignment->id,
-            'teacher_profile_id' => $teacher->id,
-            'assessor_profile_id' => $assessorProfile->id,
-        ], [
-            'status' => 'draft',
-            'started_at' => now(),
-        ]);
-
         // If assessment is already submitted/finalized, redirect to view
-        if (in_array($assessment->status, ['submitted', 'finalized'])) {
-            return redirect()->route('assessor.results.show', $assessment)
+        if (in_array($existingAssessment->status, ['submitted', 'finalized'])) {
+            return redirect()->route('assessor.results.show', $existingAssessment)
                 ->with('info', 'Penilaian ini sudah disubmit dan tidak dapat diubah.');
         }
 
         // Load existing values
-        $existingValues = $assessment->itemValues()->get()->keyBy('form_item_id');
+        $existingValues = $existingAssessment->itemValues()->get()->keyBy('form_item_id');
+        $assessment = $existingAssessment;
 
         $formVersion = $assignment->formVersion;
+
+        // dd($formVersion);
 
         return view('assessor.assessments.score', compact(
             'period',

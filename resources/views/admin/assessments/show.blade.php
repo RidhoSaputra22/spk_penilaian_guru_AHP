@@ -46,13 +46,15 @@
                                 </div>
                             </div>
                             <div
-                                class="badge badge-{{ $assessment->status === 'submitted' ? 'success' : ($assessment->status === 'in_progress' ? 'warning' : 'ghost') }}">
+                                class="badge badge-{{ $assessment->status === 'finalized' ? 'primary' : ($assessment->status === 'submitted' ? 'success' : ($assessment->status === 'in_progress' ? 'warning' : 'ghost')) }}">
                                 @if($assessment->status === 'pending')
                                 Belum dimulai
                                 @elseif($assessment->status === 'in_progress')
                                 Sedang dinilai
                                 @elseif($assessment->status === 'submitted')
-                                Selesai
+                                Submitted
+                                @elseif($assessment->status === 'finalized')
+                                Finalized
                                 @else
                                 {{ ucfirst($assessment->status) }}
                                 @endif
@@ -95,7 +97,7 @@
                         <h3 class="card-title">Progress Penilaian</h3>
                         <div class="space-y-4 mt-4">
                             @php
-                            $totalItems = $assessment->assignment->formVersion->template->sections->sum('items_count')
+                            $totalItems = $assessment->assignment->formVersion->sections->sum('items_count')
                             ?? 0;
                             $completedItems = $assessment->itemValues->count();
                             $progressPercentage = $totalItems > 0 ? ($completedItems / $totalItems) * 100 : 0;
@@ -130,6 +132,76 @@
 
             <!-- Side Info -->
             <div class="space-y-6">
+                <!-- Admin Actions -->
+                <div class="card bg-base-100 shadow-sm">
+                    <div class="card-body">
+                        <h3 class="card-title text-base">Aksi Admin</h3>
+                        <div class="space-y-3 mt-4">
+                            @if($assessment->status === 'submitted')
+                            <!-- Finalize Button -->
+                            <form action="{{ route('admin.assessments.finalize', $assessment) }}" method="POST"
+                                onsubmit="return confirm('Apakah Anda yakin ingin menfinalisasi penilaian ini? Penilaian yang sudah difinalisasi akan dihitung dalam hasil akhir.')">
+                                @csrf
+                                <div class="form-control">
+                                    <label class="label">
+                                        <span class="label-text text-xs">Catatan Admin (opsional)</span>
+                                    </label>
+                                    <textarea name="admin_notes" class="textarea textarea-bordered textarea-sm"
+                                        placeholder="Tambahkan catatan jika diperlukan..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-success btn-sm w-full mt-3">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Finalisasi Penilaian
+                                </button>
+                            </form>
+                            @elseif(in_array($assessment->status, ['submitted', 'finalized']))
+                            <!-- Reopen Button -->
+                            <form action="{{ route('admin.assessments.reopen', $assessment) }}" method="POST"
+                                onsubmit="return confirm('Apakah Anda yakin ingin membuka kembali penilaian ini? Assessor akan dapat mengedit kembali penilaian.')">
+                                @csrf
+                                <div class="form-control">
+                                    <label class="label">
+                                        <span class="label-text text-xs">Alasan membuka kembali <span
+                                                class="text-error">*</span></span>
+                                    </label>
+                                    <textarea name="reason" class="textarea textarea-bordered textarea-sm" required
+                                        placeholder="Jelaskan alasan membuka kembali penilaian..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-warning btn-sm w-full mt-3">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                    </svg>
+                                    Buka Kembali Penilaian
+                                </button>
+                            </form>
+                            @else
+                            <div class="alert alert-info text-xs">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Penilaian belum di-submit oleh assessor.</span>
+                            </div>
+                            @endif
+
+                            @if($assessment->status === 'finalized')
+                            <div class="alert alert-success text-xs">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span>Penilaian telah difinalisasi pada
+                                    {{ $assessment->finalized_at ? \Carbon\Carbon::parse($assessment->finalized_at)->format('d M Y H:i') : '-' }}</span>
+                            </div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Period Info -->
                 <div class="card bg-base-100 shadow-sm">
                     <div class="card-body">

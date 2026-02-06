@@ -5,13 +5,13 @@ Admin / Operator
 User & Access
 • Create / activate / deactivate accounts (Admin, Assessor, Teacher)
 
-Master Data
+# Master Data
 • Manage teacher data (identity, subject, status)
 • Manage assessor/team data
 • Manage assessment periods (semester/year, open/close)
 • Manage criteria & sub-criteria (kompetensi + indikator)
 • Manage scoring scale (range + descriptions)
-KPI Form Builder (Create the form assessors will use)
+# KPI Form Builder (Create the form assessors will use)
 • Create KPI form template (per period or reusable)
 • Add sections (by criteria/sub-criteria)
 • Add indicators/items per section
@@ -20,17 +20,17 @@ KPI Form Builder (Create the form assessors will use)
 • Assign form to period + teacher groups + assessors
 • Publish/lock form (no edits after scoring starts)
 • Clone/copy form from previous period
-AHP Weighting (Handled by Admin)
+# AHP Weighting (Handled by Admin)
 • Set AHP hierarchy (Goal → Criteria → Sub-criteria)
 • Input pairwise comparison for criteria (and sub-criteria if used)
 • Auto-calculate weights + show Consistency Ratio (CR)
 • Revise until CR acceptable
 • Lock/finalize weights for the period (so assessors only score)
-Monitoring & Control
+# Monitoring & Control
 • Open/close scoring window per period
 • Track scoring progress (who is not yet assessed)
 • Optionally re-open a finalized teacher assessment (with reason/log)
-Results & Reporting
+# Results & Reporting
 • Generate final results (AHP weights × KPI scores)• View ranking list + filters (period, subject, status)
 • View teacher detail breakdown (weights + indicator scores)
 • Export/print reports:
@@ -38,29 +38,29 @@ Results & Reporting
 • PDF teacher detail
 • PDF AHP weights + CR
 • Excel recap
-Audit & History
+# Audit & History
 • Store results per period (history/trend)
 • Change log for key actions (form publish, weight lock, assessment finalization)
-Assessor / Tim Penilai
-Account
+# Assessor / Tim Penilai
+# Account
 • Login/logout
 • Update own profile/password
-Teacher KPI Scoring (Only input KPI scores)
+# Teacher KPI Scoring (Only input KPI scores)
 • Select period → select teacher → system loads the published KPI form
 • Input scores per indicator (based on form field type)
 • Add notes/comments per indicator/section (optional)
 • Save draft
 • Submit/finalize assessment for that teacher (locked)
-View Results (Optional access)
+# View Results (Optional access)
 • View results for teachers they assessed (detail + notes)
 • No access to change weights or form structure
-Teacher (Guru)
-Account
+# Teacher (Guru)
+# Account
 • Login/logout
 • Update own profile/password
-Evidence & Status (Optional but scalable)
+# Evidence & Status (Optional but scalable)
 • Upload evidence per indicator (document/photo/link) if required by form• See assessment status (not started / draft / finalized)
-Results (Restricted)
+# Results (Restricted)
 • View only their own KPI results:
 • final score
 • breakdown per criteria/sub-criteria/indicator (as allowed)

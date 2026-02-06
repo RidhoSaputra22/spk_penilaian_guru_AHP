@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\AssessmentPeriod;
 use App\Models\Assessment;
-use App\Models\KpiFormVersion;
-use App\Models\TeacherProfile;
+use App\Models\AssessmentPeriod;
 use App\Models\AssessorProfile;
+use App\Models\KpiFormAssignment;
+use App\Models\TeacherProfile;
 use Illuminate\Http\Request;
 
 class KpiAssignmentController extends Controller
@@ -26,13 +26,13 @@ class KpiAssignmentController extends Controller
             'teacher.user',
             'assignment.formVersion.template',
             'period',
-            'assessor.user'
+            'assessor.user',
         ]);
 
         // Apply filters
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->whereHas('teacher.user', function ($subQ) use ($search) {
                     $subQ->where('name', 'like', "%{$search}%");
                 })->orWhereHas('assignment.formVersion.template', function ($subQ) use ($search) {
@@ -64,7 +64,7 @@ class KpiAssignmentController extends Controller
             '' => 'Semua Status',
             'draft' => 'Ditugaskan',
             'in_progress' => 'Dikerjakan',
-            'finalized' => 'Selesai'
+            'finalized' => 'Selesai',
         ];
 
         return view('admin.kpi-assignments.index', compact(
@@ -81,20 +81,18 @@ class KpiAssignmentController extends Controller
         $periods = AssessmentPeriod::orderBy('academic_year', 'desc')
             ->orderBy('semester', 'desc')
             ->get()
-            ->mapWithKeys(fn($p) => [$p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"]);
+            ->mapWithKeys(fn ($p) => [$p->id => "{$p->name} ({$p->academic_year} - {$p->semester})"]);
 
-        $formVersions = KpiFormVersion::with('template')
-            ->where('status', 'published')
-            ->get()
-            ->mapWithKeys(fn($v) => [$v->id => "{$v->template->name} (v{$v->version})"]);
+        $formVersions = KpiFormAssignment::get()
+            ->mapWithKeys(fn ($f) => [$f->id => "{$f->formVersion->template->name} (v{$f->formVersion->version})"]);
 
         $teachers = TeacherProfile::with('user')
             ->get()
-            ->mapWithKeys(fn($t) => [$t->id => "{$t->user->name} ({$t->employee_no})"]);
+            ->mapWithKeys(fn ($t) => [$t->id => "{$t->user->name} ({$t->employee_no})"]);
 
         $assessors = AssessorProfile::with('user')
             ->get()
-            ->mapWithKeys(fn($a) => [$a->id => $a->user->name]);
+            ->mapWithKeys(fn ($a) => [$a->id => $a->user->name]);
 
         return view('admin.kpi-assignments.create', compact(
             'periods',
@@ -108,14 +106,37 @@ class KpiAssignmentController extends Controller
     {
         $validated = $request->validate([
             'assessment_period_id' => 'required|exists:assessment_periods,id',
-            'form_version_id' => 'required|exists:kpi_form_versions,id',
+            'form_version_id' => 'required|exists:kpi_form_assignments,id',
             'teacher_profile_id' => 'required|exists:teacher_profiles,id',
             'assessor_profile_id' => 'required|exists:assessor_profiles,id',
         ]);
 
+        // dd($validated);
+
+        $exists = Assessment::where('assessment_period_id', $validated['assessment_period_id'])
+            ->where('teacher_profile_id', $validated['teacher_profile_id'])
+            ->where('assessor_profile_id', $validated['assessor_profile_id'])
+            ->exists();
+
+        if ($exists) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('error', 'Penugasan sudah ada. Kombinasi periode, guru, dan penilai ini sudah pernah dibuat.');
+        }
+
+        $kpiFormAssignment = KpiFormAssignment::where('id', $validated['form_version_id'])
+            ->first();
+
+        // dd($kpiFormAssignment, $validated['form_version_id']);
+        // dd($kpiFormAssignment);
+        // dd($kpiFormAssignment->formVersion->template->name);
+
         // Create assessment
         Assessment::create($validated + [
             'status' => 'draft',
+            'assignment_id' => $kpiFormAssignment->id,
+
         ]);
 
         return redirect()
@@ -130,7 +151,7 @@ class KpiAssignmentController extends Controller
             'assignment.formVersion.template',
             'period',
             'assessor.user',
-            'itemValues.formItem'
+            'itemValues.formItem',
         ])->findOrFail($id);
 
         return view('admin.kpi-assignments.show', compact('assignment'));

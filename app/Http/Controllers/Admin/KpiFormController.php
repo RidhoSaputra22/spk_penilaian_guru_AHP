@@ -146,7 +146,7 @@ class KpiFormController extends Controller
 
     public function builderSimple(KpiFormTemplate $template)
     {
-        $version = $template->versions()->with(['sections.items.options'])->latest('version')->first();
+        $version = $template->versions()->with(['sections.items.options', 'sections.criteriaNode'])->latest('version')->first();
 
         // If no version exists, create one
         if (! $version) {
@@ -171,7 +171,7 @@ class KpiFormController extends Controller
 
     public function preview(KpiFormTemplate $template)
     {
-        $latestVersion = $template->versions()->with(['sections.items.options'])->latest('version')->first();
+        $latestVersion = $template->versions()->with(['sections.items.options', 'sections.criteriaNode'])->latest('version')->first();
 
         return view('admin.kpi-forms.preview', [
             'template' => $template,
@@ -223,11 +223,16 @@ class KpiFormController extends Controller
     {
         $template = $version->template;
 
-        $criteriaNodes = $version->criteriaSet
-            ? $version->criteriaSet->nodes()->orderBy('sort_order')->get()
+        // Get criteria from active criteria set for this institution
+        $criteriaSet = CriteriaSet::where('institution_id', auth()->user()->institution_id)
+            ->where('is_active', true)
+            ->first();
+
+        $criteriaNodes = $criteriaSet
+            ? $criteriaSet->nodes()->whereNull('parent_id')->orderBy('sort_order')->get()
             : collect();
 
-        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => $n->name])->toArray();
+        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => "[{$n->code}] {$n->name}"])->toArray();
 
         return view('admin.kpi-forms.create-section', compact('template', 'version', 'criteriaOptions'));
     }
@@ -277,11 +282,16 @@ class KpiFormController extends Controller
         $template = $section->version->template;
         $version = $section->version;
 
-        $criteriaNodes = $version->criteriaSet
-            ? $version->criteriaSet->nodes()->orderBy('sort_order')->get()
+        // Get criteria from active criteria set for this institution
+        $criteriaSet = CriteriaSet::where('institution_id', auth()->user()->institution_id)
+            ->where('is_active', true)
+            ->first();
+
+        $criteriaNodes = $criteriaSet
+            ? $criteriaSet->nodes()->whereNull('parent_id')->orderBy('sort_order')->get()
             : collect();
 
-        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => $n->name])->toArray();
+        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => "[{$n->code}] {$n->name}"])->toArray();
 
         return view('admin.kpi-forms.edit-section', compact('template', 'version', 'section', 'criteriaOptions'));
     }
@@ -327,11 +337,17 @@ class KpiFormController extends Controller
         $template = $section->version->template;
         $version = $section->version;
 
-        $criteriaNodes = $version->criteriaSet
-            ? $version->criteriaSet->nodes()->orderBy('sort_order')->get()
+        // Get criteria from active criteria set for this institution (sub-criteria/indicators)
+        $criteriaSet = CriteriaSet::where('institution_id', auth()->user()->institution_id)
+            ->where('is_active', true)
+            ->first();
+
+        // Get sub-criteria (children of main criteria) for form items
+        $criteriaNodes = $criteriaSet
+            ? $criteriaSet->nodes()->whereNotNull('parent_id')->orderBy('sort_order')->get()
             : collect();
 
-        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => $n->name])->toArray();
+        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => "[{$n->code}] {$n->name}"])->toArray();
 
         $fieldTypes = [
             'numeric' => 'Skor Numerik',
@@ -396,11 +412,17 @@ class KpiFormController extends Controller
         $template = $item->section->version->template;
         $version = $item->section->version;
 
-        $criteriaNodes = $version->criteriaSet
-            ? $version->criteriaSet->nodes()->orderBy('sort_order')->get()
+        // Get criteria from active criteria set for this institution (sub-criteria/indicators)
+        $criteriaSet = CriteriaSet::where('institution_id', auth()->user()->institution_id)
+            ->where('is_active', true)
+            ->first();
+
+        // Get sub-criteria (children of main criteria) for form items
+        $criteriaNodes = $criteriaSet
+            ? $criteriaSet->nodes()->whereNotNull('parent_id')->orderBy('sort_order')->get()
             : collect();
 
-        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => $n->name])->toArray();
+        $criteriaOptions = $criteriaNodes->mapWithKeys(fn ($n) => [$n->id => "[{$n->code}] {$n->name}"])->toArray();
 
         $fieldTypes = [
             'numeric' => 'Skor Numerik',

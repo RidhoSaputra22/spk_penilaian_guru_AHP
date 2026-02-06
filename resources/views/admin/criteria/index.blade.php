@@ -227,7 +227,8 @@
                         </svg>
                         <p class="text-lg">Belum ada kriteria</p>
                         <p class="text-sm mb-4">Mulai dengan menambahkan kriteria utama</p>
-                        <x-ui.button type="primary" onclick="document.getElementById('add-criteria-modal').showModal()">
+                        <x-ui.button type="primary"
+                            href="{{ route('admin.criteria.add', ['set' => $currentSet->id ?? ''])}}">
                             Tambah Kriteria Pertama
                         </x-ui.button>
                     </div>

@@ -132,6 +132,8 @@ Route::middleware(['auth', 'role:admin,super_admin'])->prefix('admin')->name('ad
     Route::post('assessments', [AssessmentController::class, 'store'])->name('assessments.store');
     Route::get('assessments/{assessment}', [AssessmentController::class, 'show'])->name('assessments.show');
     Route::post('assessments/assign', [AssessmentController::class, 'assign'])->name('assessments.assign');
+    Route::post('assessments/{assessment}/finalize', [AssessmentController::class, 'finalize'])->name('assessments.finalize');
+    Route::post('assessments/{assessment}/reopen', [AssessmentController::class, 'reopen'])->name('assessments.reopen');
 
     // Results & Ranking
     Route::get('results', [ResultController::class, 'index'])->name('results.index');

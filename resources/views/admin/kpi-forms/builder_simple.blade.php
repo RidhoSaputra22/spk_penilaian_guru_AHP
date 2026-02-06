@@ -89,6 +89,12 @@
                             </svg>
                             <div>
                                 <h4 class="font-semibold">{{ $section->title }}</h4>
+                                @if($section->criteriaNode)
+                                <p class="text-xs text-primary">
+                                    <span class="badge badge-primary badge-xs">{{ $section->criteriaNode->code }}</span>
+                                    {{ $section->criteriaNode->name }}
+                                </p>
+                                @endif
                                 @if($section->description)
                                 <p class="text-sm text-base-content/60">{{ $section->description }}</p>
                                 @endif

@@ -86,6 +86,12 @@
                 <div class="form-section border-b border-base-200 pb-6 last:border-0">
                     <div class="mb-4">
                         <h3 class="text-lg font-semibold text-primary">{{ $section->title }}</h3>
+                        @if($section->criteriaNode)
+                        <p class="text-xs mt-1">
+                            <span class="badge badge-primary badge-sm">{{ $section->criteriaNode->code }}</span>
+                            <span class="text-base-content/60">{{ $section->criteriaNode->name }}</span>
+                        </p>
+                        @endif
                         @if($section->description)
                         <p class="text-base-content/70 mt-1">{{ $section->description }}</p>
                         @endif
