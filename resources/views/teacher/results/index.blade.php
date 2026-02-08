@@ -42,8 +42,55 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                         d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <h3 class="text-lg font-semibold mb-2">Belum Ada Hasil</h3>
-                <p class="text-base-content/60">Hasil penilaian Anda belum tersedia.</p>
+                <h3 class="text-lg font-semibold mb-2">Belum Ada Hasil Penilaian</h3>
+
+                @if(isset($assessmentStatus))
+                    @if($assessmentStatus['total'] == 0)
+                        <p class="text-base-content/60 mb-4">Anda belum memiliki penilaian dari assessor.</p>
+
+                        @if($assessmentStatus['has_active_period'])
+                            <x-ui.alert type="info" class="max-w-md mx-auto">
+                                <p class="text-sm">
+                                    <strong>Periode penilaian sedang aktif.</strong><br>
+                                    Silakan tunggu assessor menyelesaikan penilaian terhadap kinerja Anda.
+                                </p>
+                            </x-ui.alert>
+                        @else
+                            <x-ui.alert type="warning" class="max-w-md mx-auto">
+                                <p class="text-sm">
+                                    Belum ada periode penilaian yang aktif.<br>
+                                    Hubungi admin untuk informasi lebih lanjut.
+                                </p>
+                            </x-ui.alert>
+                        @endif
+                    @elseif($assessmentStatus['submitted'] == 0)
+                        <p class="text-base-content/60 mb-4">Penilaian Anda sedang dalam proses.</p>
+                        <x-ui.alert type="info" class="max-w-md mx-auto">
+                            <div class="text-sm">
+                                <strong>Status Penilaian:</strong>
+                                <ul class="mt-2 space-y-1">
+                                    <li>• Total penilaian: {{ $assessmentStatus['total'] }}</li>
+                                    <li>• Masih draft: {{ $assessmentStatus['draft'] }}</li>
+                                    <li>• Selesai: {{ $assessmentStatus['submitted'] }}</li>
+                                </ul>
+                                <p class="mt-3">Hasil akan muncul setelah assessor menyelesaikan penilaian dan admin menghitung hasil.</p>
+                            </div>
+                        </x-ui.alert>
+                    @else
+                        <p class="text-base-content/60 mb-4">Penilaian Anda sudah selesai, menunggu perhitungan hasil.</p>
+                        <x-ui.alert type="success" class="max-w-md mx-auto">
+                            <div class="text-sm">
+                                <strong>Status Penilaian:</strong>
+                                <ul class="mt-2 space-y-1">
+                                    <li>• Total penilaian selesai: {{ $assessmentStatus['submitted'] }}</li>
+                                </ul>
+                                <p class="mt-3">Silakan tunggu admin menghitung dan mempublikasikan hasil akhir.</p>
+                            </div>
+                        </x-ui.alert>
+                    @endif
+                @else
+                    <p class="text-base-content/60">Hasil penilaian Anda belum tersedia.</p>
+                @endif
             </div>
         </x-ui.card>
     @else

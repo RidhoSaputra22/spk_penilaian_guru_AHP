@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Teacher;
 
-use App\Enums\AssessmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Assessment;
 use App\Models\AssessmentPeriod;
@@ -16,10 +15,19 @@ class ResultController extends Controller
      */
     private function computeGrade(float $score): string
     {
-        if ($score >= 90) return 'A';
-        if ($score >= 80) return 'B';
-        if ($score >= 70) return 'C';
-        if ($score >= 60) return 'D';
+        if ($score >= 90) {
+            return 'A';
+        }
+        if ($score >= 80) {
+            return 'B';
+        }
+        if ($score >= 70) {
+            return 'C';
+        }
+        if ($score >= 60) {
+            return 'D';
+        }
+
         return 'E';
     }
 
@@ -30,7 +38,7 @@ class ResultController extends Controller
     {
         $result = [];
         foreach ($criteriaScoresCollection as $score) {
-            $name = $score->criteriaNode->name ?? ('Kriteria ' . ($score->criteriaNode->code ?? '?'));
+            $name = $score->criteriaNode->name ?? ('Kriteria '.($score->criteriaNode->code ?? '?'));
             $result[] = [
                 'name' => $name,
                 'code' => $score->criteriaNode->code ?? '',
@@ -39,6 +47,7 @@ class ResultController extends Controller
                 'weighted_score' => (float) $score->weighted_score,
             ];
         }
+
         return $result;
     }
 
@@ -51,6 +60,7 @@ class ResultController extends Controller
             return view('teacher.results.index', [
                 'results' => collect(),
                 'periods' => collect(),
+                'assessmentStatus' => [],
             ]);
         }
 
@@ -73,15 +83,25 @@ class ResultController extends Controller
             $result->grade = $this->computeGrade((float) $result->final_score);
             // Count total teachers in same period result
             $result->total_teachers = TeacherPeriodResult::where('period_result_id', $result->period_result_id)->count();
+
             return $result;
         });
 
-        // Get all periods for filter
-        $periods = AssessmentPeriod::whereHas('teacherResults', function ($q) use ($teacherProfile) {
-            $q->where('teacher_profile_id', $teacherProfile->id);
-        })->orderBy('created_at', 'desc')->get();
+        // Get all periods for filter (show all periods, not just those with results)
+        $periods = AssessmentPeriod::orderBy('created_at', 'desc')->get();
 
-        return view('teacher.results.index', compact('results', 'periods'));
+        // Get assessment status for this teacher
+        $assessmentStatus = [
+            'total' => Assessment::where('teacher_profile_id', $teacherProfile->id)->count(),
+            'draft' => Assessment::where('teacher_profile_id', $teacherProfile->id)->where('status', 'draft')->count(),
+            'submitted' => Assessment::where('teacher_profile_id', $teacherProfile->id)->whereIn('status', ['submitted', 'finalized'])->count(),
+        ];
+
+        // Check if there are active periods
+        $activePeriods = AssessmentPeriod::where('status', 'active')->count();
+        $assessmentStatus['has_active_period'] = $activePeriods > 0;
+
+        return view('teacher.results.index', compact('results', 'periods', 'assessmentStatus'));
     }
 
     public function show(TeacherPeriodResult $result)
@@ -177,7 +197,7 @@ class ResultController extends Controller
                 'period' => $period,
             ]);
 
-            $filename = 'Hasil_Penilaian_' . str_replace(' ', '_', $user->name) . '_' . ($period->name ?? 'hasil') . '.pdf';
+            $filename = 'Hasil_Penilaian_'.str_replace(' ', '_', $user->name).'_'.($period->name ?? 'hasil').'.pdf';
 
             return $pdf->download($filename);
         }

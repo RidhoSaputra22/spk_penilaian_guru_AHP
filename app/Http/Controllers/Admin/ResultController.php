@@ -123,13 +123,39 @@ class ResultController extends Controller
             }
         }
 
+        // Calculate readiness info for the selected period
+        $readiness = null;
+        if ($selectedPeriod) {
+            $ahpModel = $selectedPeriod->ahpModel;
+            $submittedCount = Assessment::where('assessment_period_id', $selectedPeriod->id)
+                ->whereIn('status', ['submitted', 'finalized'])
+                ->count();
+            $draftCount = Assessment::where('assessment_period_id', $selectedPeriod->id)
+                ->where('status', 'draft')
+                ->count();
+            $totalAssessments = Assessment::where('assessment_period_id', $selectedPeriod->id)->count();
+            $periodResultExists = PeriodResult::where('assessment_period_id', $selectedPeriod->id)->exists();
+
+            $readiness = [
+                'ahp_finalized' => $ahpModel && $ahpModel->status === 'finalized',
+                'ahp_status' => $ahpModel?->status ?? 'tidak ada',
+                'ahp_weight_count' => $ahpModel ? AhpWeight::where('ahp_model_id', $ahpModel->id)->count() : 0,
+                'submitted_count' => $submittedCount,
+                'draft_count' => $draftCount,
+                'total_assessments' => $totalAssessments,
+                'can_calculate' => ($ahpModel && $ahpModel->status === 'finalized' && $submittedCount > 0),
+                'has_results' => $periodResultExists,
+            ];
+        }
+
         return view('admin.results.index', compact(
             'periods',
             'selectedPeriod',
             'results',
             'criteria',
             'criteriaAverages',
-            'statsData'
+            'statsData',
+            'readiness'
         ));
     }
 
