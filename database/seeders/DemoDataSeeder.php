@@ -16,6 +16,7 @@ class DemoDataSeeder extends Seeder
             DemoAhpSeeder::class,
             DemoAssessmentsSeeder::class,
             DemoResultsSeeder::class,
+            SupervisionFormsSeeder::class, // Form 2, 3, 4 Supervisi
         ]);
     }
 }
