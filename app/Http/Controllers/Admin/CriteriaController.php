@@ -268,7 +268,17 @@ class CriteriaController extends Controller
 
     public function destroySet(CriteriaSet $criteriaSet)
     {
+        // Check if set is locked
+        if ($criteriaSet->locked_at) {
+            return back()->with('error', 'Set kriteria yang terkunci tidak dapat dihapus.');
+        }
+
         $setName = $criteriaSet->name;
+
+        // Delete all nodes first (cascade should handle this, but being explicit)
+        $criteriaSet->nodes()->delete();
+
+        // Delete the set
         $criteriaSet->delete();
 
         // Log activity

@@ -28,24 +28,27 @@
             <x-ui.card title="Set Kriteria">
                 <div class="space-y-2">
                     @forelse($criteriaSets ?? [] as $set)
-                    <a href="{{ route('admin.criteria.index', ['set' => $set->id]) }}"
-                        class="flex items-center justify-between p-3 rounded-lg hover:bg-primary hover:text-white  transition-colors {{ ($currentSet->id ?? null) === $set->id ? 'bg-primary text-white' : '' }}">
-                        <div>
-                            <div class="font-medium">{{ $set->name }}</div>
-                            <div class="text-sm ">v{{ $set->version }}</div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            @if($set->is_active)
-                            <x-ui.badge type="success" size="xs">Active</x-ui.badge>
-                            @endif
-                            @if($set->locked_at)
-                            <svg class="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                            @endif
-                        </div>
-                    </a>
+                    <div class="flex items-center gap-2">
+                        <a href="{{ route('admin.criteria.index', ['set' => $set->id]) }}"
+                            class="flex-1 flex items-center justify-between p-3 rounded-lg hover:bg-primary hover:text-white transition-colors {{ ($currentSet->id ?? null) === $set->id ? 'bg-primary text-white' : '' }}">
+                            <div>
+                                <div class="font-medium">{{ $set->name }}</div>
+                                <div class="text-sm ">v{{ $set->version }}</div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                @if($set->is_active)
+                                <x-ui.badge type="success" size="xs">Active</x-ui.badge>
+                                @endif
+                                @if($set->locked_at)
+                                <svg class="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                @endif
+                            </div>
+                        </a>
+
+                    </div>
                     @empty
                     <div class="text-center py-8 text-base-content/60">
                         <p>Belum ada set kriteria</p>
@@ -94,6 +97,13 @@
                                     d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
                         </x-ui.button>
+                        <x-ui.button type="error" size="sm" class="flex items-center justify-center text-white"
+                            onclick="deleteSet('{{ $currentSet->id }}', '{{ $currentSet->name }}')">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                        </x-ui.button>
 
                     </div>
                 </div>
@@ -101,9 +111,9 @@
                 <!-- Criteria Tree View -->
                 <div class="space-y-2" x-data="{ expandedNodes: [] }">
                     @php
-                        $topLevelCriteria = $goalNode
-                            ? $criteriaNodes->where('parent_id', $goalNode->id)
-                            : $criteriaNodes->where('parent_id', null);
+                    $topLevelCriteria = $goalNode
+                    ? $criteriaNodes->where('parent_id', $goalNode->id)
+                    : $criteriaNodes->where('parent_id', null);
                     @endphp
                     @forelse($topLevelCriteria ?? [] as $criteria)
                     <div class="border border-base-200 rounded-lg">
@@ -276,6 +286,23 @@
     </x-ui.modal>
     @endif
 
+    <!-- Delete Set Modal -->
+    <x-ui.modal id="delete-set-modal" title="Hapus Set Kriteria">
+        <p>Anda yakin ingin menghapus set kriteria <strong id="delete-set-name"></strong>?</p>
+        <p class="text-sm text-error mt-2">Perhatian: Semua kriteria, sub-kriteria, dan data terkait akan ikut terhapus.
+            Tindakan ini tidak dapat dibatalkan.</p>
+        <x-slot:actions>
+            <form method="dialog">
+                <button class="btn btn-ghost">Batal</button>
+            </form>
+            <form id="delete-set-form" method="POST" action="">
+                @csrf
+                @method('DELETE')
+                <x-ui.button type="error">Hapus</x-ui.button>
+            </form>
+        </x-slot:actions>
+    </x-ui.modal>
+
     <script>
     function addSubCriteria(parentId, parentName) {
         document.getElementById('parent_id_input').value = parentId;
@@ -296,6 +323,12 @@
             document.body.appendChild(form);
             form.submit();
         }
+    }
+
+    function deleteSet(id, name) {
+        document.getElementById('delete-set-name').textContent = name;
+        document.getElementById('delete-set-form').action = `/admin/criteria/sets/${id}`;
+        document.getElementById('delete-set-modal').showModal();
     }
     </script>
 </x-layouts.admin>
