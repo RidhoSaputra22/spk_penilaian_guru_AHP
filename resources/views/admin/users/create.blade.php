@@ -54,7 +54,7 @@
                         <h3 class="text-lg font-medium mb-4">Role & Status</h3>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <x-ui.select name="role" label="Role" :options="[
-                                    'admin' => 'Admin',
+
                                     'assessor' => 'Penilai (Assessor)',
                                     'teacher' => 'Guru (Teacher)'
                                 ]" selected="{{ old('role', $request->role) }}" required />
