@@ -12,8 +12,6 @@ use App\Models\TeacherCriteriaScore;
 use App\Models\TeacherPeriodResult;
 use App\Services\ResultCalculationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class ResultController extends Controller
 {
@@ -148,6 +146,8 @@ class ResultController extends Controller
             ];
         }
 
+        // dd($results);
+
         return view('admin.results.index', compact(
             'periods',
             'selectedPeriod',
@@ -181,6 +181,7 @@ class ResultController extends Controller
                 // Map criteria to their scores
                 $criteriaScores = $criteria->map(function ($criterion) use ($result) {
                     $score = $result->criteriaScores->firstWhere('criteria_node_id', $criterion->id);
+
                     return [
                         'name' => $criterion->name,
                         'code' => $criterion->code ?? '',
@@ -216,6 +217,7 @@ class ResultController extends Controller
             ->get()
             ->map(function ($r) {
                 $r->grade = $this->determineGrade((float) $r->final_score);
+
                 return $r;
             });
 
@@ -355,7 +357,7 @@ class ResultController extends Controller
         $period = AssessmentPeriod::with(['ahpModel.weights', 'ahpModel.criteriaSet.nodes'])
             ->findOrFail($validated['period_id']);
 
-        $service = new ResultCalculationService();
+        $service = new ResultCalculationService;
         $result = $service->calculate($period);
 
         if (! $result['success']) {

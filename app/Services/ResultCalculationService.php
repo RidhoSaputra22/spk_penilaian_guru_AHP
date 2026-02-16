@@ -87,13 +87,23 @@ class ResultCalculationService
                 ->get();
 
             $subs = [];
+            // Check if any subcriteria has AHP weight; if none, distribute equally
+            $hasSubCriteriaWeights = $subCriteria->isNotEmpty()
+                && $subCriteria->contains(fn ($sc) => isset($weights[$sc->id]) && $weights[$sc->id] > 0);
+            $equalWeight = $subCriteria->count() > 0 ? (1 / $subCriteria->count()) : 0;
+
             foreach ($subCriteria as $sc) {
                 // Collect ALL descendant IDs (subcriteria + indicators + deeper)
                 $descendantIds = $this->getAllDescendantIds($sc->id);
 
+                // Use AHP weight if available, otherwise distribute equally
+                $scWeight = $hasSubCriteriaWeights
+                    ? ($weights[$sc->id] ?? 0)
+                    : $equalWeight;
+
                 $subs[] = [
                     'node' => $sc,
-                    'weight' => $weights[$sc->id] ?? 0,
+                    'weight' => $scWeight,
                     'descendant_ids' => $descendantIds,
                 ];
             }
@@ -168,9 +178,9 @@ class ResultCalculationService
                         $totalFinalScore += $weightedScore;
 
                         $criteriaScoresData[$criteriaId] = [
-                            'raw_score' => round($normalizedRaw, 2),
-                            'weight' => round($criteriaWeight, 4),
-                            'weighted_score' => round($weightedScore, 2),
+                            'raw_score' => (string) round($normalizedRaw, 2),
+                            'weight' => (string) round($criteriaWeight, 4),
+                            'weighted_score' => (string) round($weightedScore, 2),
                         ];
                     } else {
                         // Has sub-criteria: aggregate from sub-criteria scores
@@ -191,9 +201,9 @@ class ResultCalculationService
 
                             // Store sub-criteria score too
                             $criteriaScoresData[$scNodeId] = [
-                                'raw_score' => round($normalizedSubRaw, 2),
-                                'weight' => round($scWeight, 4),
-                                'weighted_score' => round($normalizedSubRaw * $scWeight, 2),
+                                'raw_score' => (string) round($normalizedSubRaw, 2),
+                                'weight' => (string) round($scWeight, 4),
+                                'weighted_score' => (string) round($normalizedSubRaw * $scWeight, 2),
                             ];
                         }
 
@@ -202,9 +212,9 @@ class ResultCalculationService
                         $totalFinalScore += $weightedScore;
 
                         $criteriaScoresData[$criteriaId] = [
-                            'raw_score' => round($criteriaRawScore, 2),
-                            'weight' => round($criteriaWeight, 4),
-                            'weighted_score' => round($weightedScore, 2),
+                            'raw_score' => (string) round($criteriaRawScore, 2),
+                            'weight' => (string) round($criteriaWeight, 4),
+                            'weighted_score' => (string) round($weightedScore, 2),
                         ];
                     }
                 }
@@ -217,7 +227,7 @@ class ResultCalculationService
                     ],
                     [
                         'id' => Str::ulid(),
-                        'final_score' => round($totalFinalScore, 2),
+                        'final_score' => (string) round($totalFinalScore, 2),
                         'details' => [
                             'calculated_at' => now()->toIso8601String(),
                             'max_scale' => $maxScale,
