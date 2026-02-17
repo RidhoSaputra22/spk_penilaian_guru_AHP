@@ -39,19 +39,19 @@ class ReportController extends Controller
             case 'results':
                 return redirect()->route('admin.results.export', [
                     'period_id' => $validated['period_id'],
-                    'format' => $validated['format']
+                    'format' => $validated['format'],
                 ]);
 
             case 'progress':
                 return redirect()->route('admin.reports.export-progress', [
                     'period_id' => $validated['period_id'],
-                    'format' => $validated['format']
+                    'format' => $validated['format'],
                 ]);
 
             case 'ahp':
                 return redirect()->route('admin.reports.export-ahp', [
                     'period_id' => $validated['period_id'],
-                    'format' => $validated['format']
+                    'format' => $validated['format'],
                 ]);
 
             default:
@@ -87,17 +87,17 @@ class ReportController extends Controller
 
     private function exportProgressExcel($period, $assessments, $stats)
     {
-        $filename = 'laporan-progress-' . \Str::slug($period->name) . '.csv';
+        $filename = 'laporan-progress-'.\Str::slug($period->name).'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0'
+            'Expires' => '0',
         ];
 
-        $callback = function() use ($assessments, $stats, $period) {
+        $callback = function () use ($assessments, $stats, $period) {
             $file = fopen('php://output', 'w');
 
             // UTF-8 BOM for Excel
@@ -105,7 +105,7 @@ class ReportController extends Controller
 
             // Header info
             fputcsv($file, ['LAPORAN PROGRESS PENILAIAN GURU']);
-            fputcsv($file, ['Periode', $period->name . ' - ' . $period->academic_year]);
+            fputcsv($file, ['Periode', $period->name.' - '.$period->academic_year]);
             fputcsv($file, ['Tanggal Export', now()->format('d M Y H:i')]);
             fputcsv($file, []);
 
@@ -146,7 +146,7 @@ class ReportController extends Controller
         $period = AssessmentPeriod::with('ahpModel')->findOrFail($periodId);
         $ahpModel = $period->ahpModel;
 
-        if (!$ahpModel) {
+        if (! $ahpModel) {
             return back()->with('error', 'Belum ada model AHP untuk periode ini');
         }
 
@@ -179,44 +179,101 @@ class ReportController extends Controller
 
     private function exportAhpExcel($period, $ahpModel, $criteria, $weights, $comparisons)
     {
-        $filename = 'laporan-bobot-ahp-' . \Str::slug($period->name) . '.csv';
+        $filename = 'laporan-bobot-ahp-'.\Str::slug($period->name).'.csv';
 
         $headers = [
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Pragma' => 'no-cache',
             'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
-            'Expires' => '0'
+            'Expires' => '0',
         ];
 
-        $callback = function() use ($criteria, $weights, $period, $ahpModel) {
+        $callback = function () use ($criteria, $weights, $period, $ahpModel, $comparisons) {
             $file = fopen('php://output', 'w');
 
             // UTF-8 BOM for Excel
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
-            // Header info
+            // =========================
+            // HEADER INFO
+            // =========================
             fputcsv($file, ['LAPORAN BOBOT AHP']);
-            fputcsv($file, ['Periode', $period->name . ' - ' . $period->academic_year]);
+            fputcsv($file, ['Periode', $period->name.' - '.$period->academic_year.' ('.$period->semester.')']);
             fputcsv($file, ['Consistency Ratio', number_format($ahpModel->consistency_ratio ?? 0, 4)]);
             fputcsv($file, ['Status', $ahpModel->status === 'finalized' ? 'Finalized' : 'Draft']);
             fputcsv($file, ['Tanggal Export', now()->format('d M Y H:i')]);
             fputcsv($file, []);
 
-            // Weights table
+            // =========================
+            // WEIGHTS TABLE
+            // =========================
             fputcsv($file, ['BOBOT KRITERIA']);
             fputcsv($file, ['No', 'Kriteria', 'Bobot', 'Persentase']);
 
+            $totalWeight = 0;
             foreach ($criteria as $index => $criterion) {
                 $weight = $weights->get($criterion->id);
-                $weightValue = $weight ? $weight->weight : 0;
+                $weightValue = $weight ? (float) $weight->weight : 0;
+                $totalWeight += $weightValue;
 
                 fputcsv($file, [
                     $index + 1,
                     $criterion->name,
                     number_format($weightValue, 4),
-                    number_format($weightValue * 100, 2) . '%',
+                    number_format($weightValue * 100, 2).'%',
                 ]);
+            }
+
+            // total
+            fputcsv($file, ['', 'TOTAL', number_format($totalWeight, 4), number_format($totalWeight * 100, 2).'%']);
+            fputcsv($file, []);
+
+            // =========================
+            // MATRIX PERBANDINGAN BERPASANGAN
+            // =========================
+            fputcsv($file, ['TABEL MATRIKS PERBANDINGAN BERPASANGAN']);
+
+            // Buat map perbandingan: [A][B] = value
+            $comparisonMap = [];
+            foreach ($comparisons as $c) {
+                $a = $c->node_a_id ?? null;
+                $b = $c->node_b_id ?? null;
+                if ($a && $b) {
+                    $comparisonMap[$a][$b] = (float) ($c->value ?? 1);
+                }
+            }
+
+            // Header kolom matriks: "Kriteria", lalu kode/nama kriteria
+            $headerRow = ['Kriteria'];
+            foreach ($criteria as $col) {
+                $headerRow[] = $col->code ?: $col->name;
+            }
+            fputcsv($file, $headerRow);
+
+            // Isi matriks
+            foreach ($criteria as $row) {
+                $rowData = [$row->code ? ($row->code.' - '.$row->name) : $row->name];
+
+                foreach ($criteria as $col) {
+                    $a = $row->id;
+                    $b = $col->id;
+
+                    if ($a === $b) {
+                        $val = 1.0;
+                    } elseif (isset($comparisonMap[$a][$b])) {
+                        $val = (float) $comparisonMap[$a][$b];
+                    } elseif (isset($comparisonMap[$b][$a]) && (float) $comparisonMap[$b][$a] != 0.0) {
+                        $val = 1.0 / (float) $comparisonMap[$b][$a];
+                    } else {
+                        $val = 1.0;
+                    }
+
+                    // Format 2 desimal biar rapi seperti tabel skripsi
+                    $rowData[] = number_format($val, 2, '.', '');
+                }
+
+                fputcsv($file, $rowData);
             }
 
             fclose($file);
