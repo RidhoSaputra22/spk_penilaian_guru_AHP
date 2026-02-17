@@ -73,7 +73,8 @@
                     </div>
                 </div>
 
-                @if($ahpModel->consistency_ratio !== null && $ahpModel->consistency_ratio > 0.1 && $ahpModel->status !== 'finalized')
+                @if($ahpModel->consistency_ratio !== null && $ahpModel->consistency_ratio > 0.1 && $ahpModel->status !==
+                'finalized')
                 <x-ui.alert type="warning" class="mt-4">
                     <strong>Perhatian:</strong> Consistency Ratio melebihi 10%. Mohon perbaiki perbandingan berpasangan
                     agar hasil lebih konsisten.
@@ -89,55 +90,81 @@
                 </x-ui.alert>
                 @endif
 
+                @php
+                // Skala Saaty (tampil)
+                $scales = [9, 7, 5, 3, 1, '1/3', '1/5', '1/7', '1/9'];
+
+                // Konversi string pecahan -> numeric (tanpa eval)
+                $toNumeric = function ($scale) {
+                if (is_numeric($scale)) return (float) $scale;
+                if (is_string($scale) && str_contains($scale, '/')) {
+                [$p, $q] = array_map('floatval', explode('/', $scale));
+                return $q != 0 ? ($p / $q) : 1.0;
+                }
+                return 1.0;
+                };
+
+                // Map nilai comparison dari DB: [A][B] = value
+                $comparisonMap = [];
+                foreach(($comparisons ?? []) as $c){
+                $comparisonMap[$c->node_a_id][$c->node_b_id] = (float) ($c->value ?? 1);
+                }
+                @endphp
+
                 @if(count($comparisons ?? []) > 0)
                 {{-- Comparison form (only shown when comparisons exist) --}}
                 <form method="POST" action="{{ route('admin.ahp.store-comparisons', $ahpModel) }}" id="comparison-form">
                     @csrf
+
                     <div class="overflow-x-auto">
-                        <table class="table table-sm">
+                        <table class="table table-sm ">
                             <thead>
                                 <tr>
-                                    <th class="bg-base-200">Kriteria A</th>
-                                    <th class="bg-base-200 text-center">Skala</th>
-                                    <th class="bg-base-200">Kriteria B</th>
+                                    <th class="bg-base-200 whitespace-nowrap">Kriteria</th>
+                                    @foreach($criteria as $col)
+                                    <th class="bg-base-200 text-center whitespace-nowrap">
+                                        {{ $col->code ?? \Illuminate\Support\Str::limit($col->name, 8) }}
+                                    </th>
+                                    @endforeach
                                 </tr>
                             </thead>
+
                             <tbody>
-                                @foreach($comparisons as $comparison)
+                                @foreach($criteria as $i => $row)
                                 <tr>
-                                    <td class="font-medium">
-                                        {{ $comparison->nodeA?->name ?? 'N/A' }}
+                                    <td class="font-medium bg-base-200 whitespace-nowrap">
+                                        {{ $row->name }}
                                     </td>
-                                    <td>
-                                        <div class="flex items-center justify-center gap-2">
-                                            @php
-                                            $scales = [9, 7, 5, 3, 1, '1/3', '1/5', '1/7', '1/9'];
-                                            $currentValue = $comparison->value ?? 1;
-                                            @endphp
 
-                                            <span class="text-xs text-base-content/60">← Lebih penting</span>
+                                    @foreach($criteria as $j => $col)
+                                    <td class="text-center">
+                                        @if($i == $j)
+                                        <span class="badge badge-ghost">1</span>
 
-                                            <select
-                                                name="comparisons[{{ $comparison->nodeA?->id }}][{{ $comparison->nodeB?->id }}]"
-                                                class="select select-bordered select-sm w-24"
-                                                {{ $ahpModel->status === 'finalized' ? 'disabled' : '' }}>
-                                                @foreach($scales as $scale)
-                                                @php
-                                                $numericScale = is_numeric($scale) ? $scale : eval("return $scale;");
-                                                @endphp
-                                                <option value="{{ $numericScale }}"
-                                                    {{ abs($currentValue - $numericScale) < 0.01 ? 'selected' : '' }}>
-                                                    {{ $scale }}
-                                                </option>
-                                                @endforeach
-                                            </select>
+                                        @elseif($i > $j)
+                                        <span class="text-base-content/40">-</span>
 
-                                            <span class="text-xs text-base-content/60">Lebih penting →</span>
-                                        </div>
+                                        @else
+                                        @php
+                                        $a = $row->id;
+                                        $b = $col->id;
+                                        $currentValue = $comparisonMap[$a][$b] ?? 1;
+                                        @endphp
+
+                                        <select name="comparisons[{{ $a }}][{{ $b }}]"
+                                            class="select select-bordered select-sm w-24"
+                                            {{ $ahpModel->status === 'finalized' ? 'disabled' : '' }}>
+                                            @foreach($scales as $scale)
+                                            @php $numericScale = $toNumeric($scale); @endphp
+                                            <option value="{{ $numericScale }}"
+                                                {{ abs($currentValue - $numericScale) < 0.0001 ? 'selected' : '' }}>
+                                                {{ $scale }}
+                                            </option>
+                                            @endforeach
+                                        </select>
+                                        @endif
                                     </td>
-                                    <td class="font-medium text-right">
-                                        {{ $comparison->nodeB?->name ?? 'N/A' }}
-                                    </td>
+                                    @endforeach
                                 </tr>
                                 @endforeach
                             </tbody>
@@ -147,10 +174,6 @@
                     @if($ahpModel->status !== 'finalized')
                     <div class="flex justify-end mt-4">
                         <x-ui.button type="primary" :isSubmit="true">
-                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
                             Hitung Ulang Bobot
                         </x-ui.button>
                     </div>
@@ -176,12 +199,15 @@
                 @else
                 {{-- Empty state: NO comparisons yet - generate button is a standalone form --}}
                 <div class="text-center py-8">
-                    <svg class="w-16 h-16 mx-auto mb-4 text-base-content/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-16 h-16 mx-auto mb-4 text-base-content/30" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
                     <p class="text-base-content/60 mb-2">Belum ada pasangan perbandingan</p>
-                    <p class="text-sm text-base-content/40 mb-4">Pastikan Set Kriteria "{{ $ahpModel->criteriaSet->name ?? 'N/A' }}" memiliki minimal 2 kriteria di bawah node Goal.</p>
+                    <p class="text-sm text-base-content/40 mb-4">Pastikan Set Kriteria
+                        "{{ $ahpModel->criteriaSet->name ?? 'N/A' }}" memiliki minimal 2 kriteria di bawah node Goal.
+                    </p>
                     @if($ahpModel->status !== 'finalized')
                     <form method="POST" action="{{ route('admin.ahp.regenerate-comparisons', $ahpModel) }}">
                         @csrf
@@ -243,6 +269,14 @@
         <div class="lg:col-span-1 space-y-6">
             <!-- Calculated Weights -->
             <x-ui.card title="Bobot Hasil Perhitungan">
+                {{-- Keterangan asal bobot --}}
+                <div class="text-xs text-base-content/60 mb-3">
+                    Bobot diperoleh dari hasil normalisasi matriks perbandingan berpasangan
+                    menggunakan metode AHP (Eigenvector), dengan uji konsistensi
+                    melalui Consistency Ratio (CR).
+                </div>
+
+
                 <div class="space-y-3">
                     @forelse($weights ?? [] as $weight)
                     <div class="flex items-center justify-between p-3 bg-base-200 rounded-lg">

@@ -221,6 +221,8 @@ class AhpController extends Controller
             'comparisons' => ['required', 'array'],
         ]);
 
+        // dd($validated);
+
         // Get goal node for parent_node_id
         $goal = CriteriaNode::where('criteria_set_id', $ahpModel->criteria_set_id)
             ->where('node_type', 'goal')
