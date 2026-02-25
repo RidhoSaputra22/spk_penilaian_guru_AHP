@@ -99,7 +99,9 @@ class KpiAssignmentController extends Controller
 
         $assessors = AssessorProfile::with('user')
             ->get()
-            ->mapWithKeys(fn ($a) => [$a->id => $a->user->name]);
+            ->mapWithKeys(fn ($a) => [$a->id => $a->user?->name]);
+
+        // dd($assessors);
 
         return view('admin.kpi-assignments.create', compact(
             'periods',
